@@ -19,15 +19,21 @@ class WorkerStatus(str, Enum):
     OFFLINE = "OFFLINE"  # Контейнер не запущено
     STARTING = "STARTING"  # Контейнер піднімається
     IDLE = "IDLE"  # Контейнер працює, чекає задач
-    BUSY = "BUSY"  # Виконує Task
-    ERROR = "ERROR"  # Щось впало
+    BUSY = "BUSY"
+    ERROR = "ERROR"
 
 
 class TaskStatus(str, Enum):
-    QUEUED = "QUEUED"  # В черзі
-    PROCESSING = "PROCESSING"  # В роботі
-    COMPLETED = "COMPLETED"  # Готово
-    FAILED = "FAILED"  # Помилка
+    QUEUED = "QUEUED"
+    PROCESSING = "PROCESSING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+
+
+class TaskImageType(str, Enum):
+    INPUT = "INPUT"     # Початковий стан
+    RESULT = "RESULT"   # Фінальний результат
+    ERROR = "ERROR"
 
 
 # --- MODELS ---
@@ -37,21 +43,20 @@ class WorkerModel(Base):
     __tablename__ = "workers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True)  # Наприклад "Slot-1"
+    name: Mapped[str] = mapped_column(String(50), unique=True)
 
-    # --- Docker Info (Живе тут, а не в окремій таблиці) ---
+    # --- Docker Info ---
     # container_id: рядок від Docker (напр. "a1b2c3d4..."). Якщо NULL — воркер вимкнений.
     container_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    # port: Зовнішній порт для VNC (напр. 6081), щоб юзер міг підключитися
     vnc_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     status: Mapped[WorkerStatus] = mapped_column(String, default=WorkerStatus.OFFLINE)
 
-    # Зв'язок з задачами (історія завдань цього воркера)
     tasks: Mapped[List["TaskModel"]] = relationship(
         "TaskModel", back_populates="worker", cascade="all, delete-orphan"
     )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
 
 class TaskModel(Base):
@@ -71,7 +76,6 @@ class TaskModel(Base):
     )  # Логи помилок, якщо були
 
     status: Mapped[TaskStatus] = mapped_column(String, default=TaskStatus.QUEUED)
-    screenshot: Mapped[Optional[str]] = mapped_column(String(255))
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -80,6 +84,18 @@ class TaskModel(Base):
         DateTime(timezone=True), nullable=True
     )
 
-    # Прив'язка до воркера
     worker_id: Mapped[int] = mapped_column(ForeignKey("workers.id"))
     worker: Mapped["WorkerModel"] = relationship("WorkerModel", back_populates="tasks")
+
+
+class TaskImageModel(Base):
+    __tablename__ = "task_images"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"))
+
+    image_type: Mapped[TaskImageType] = mapped_column(String, nullable=False)
+    s3_url: Mapped[str] = mapped_column(String(500), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    task: Mapped["TaskModel"] = relationship("TaskModel", back_populates="images")

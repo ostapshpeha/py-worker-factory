@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from app.core.config import settings
 
 app = FastAPI(title=settings.PROJECT_NAME)
-
+app.include_router(auth_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health_check():
