@@ -21,7 +21,7 @@ from app.exceptions.worker import (
     WorkerOfflineError,
 )
 
-from app.worker.docker_service import docker_service  # Для зупинки контейнера
+# from app.worker.docker_service import docker_service  # Для зупинки контейнера
 
 router = APIRouter(prefix="/workers", tags=["Workers"])
 
