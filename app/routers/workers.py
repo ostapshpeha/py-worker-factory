@@ -9,11 +9,17 @@ from app.schemas.worker import (
     WorkerRead,
     WorkerUpdate,
     TaskListSchema,
-    TaskCreate, TaskRead,
+    TaskCreate,
+    TaskRead,
 )
 from app.user.dependencies import get_current_user
 from app.worker import crud
-from app.exceptions.worker import WorkerLimitExceeded, WorkerNotFound, WorkerIsBusyError, WorkerOfflineError
+from app.exceptions.worker import (
+    WorkerLimitExceeded,
+    WorkerNotFound,
+    WorkerIsBusyError,
+    WorkerOfflineError,
+)
 
 from app.worker.docker_service import docker_service  # Для зупинки контейнера
 
@@ -74,12 +80,14 @@ async def delete_worker_endpoint(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@router.post("/{worker_id}/tasks", response_model=TaskRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{worker_id}/tasks", response_model=TaskRead, status_code=status.HTTP_201_CREATED
+)
 async def create_task_for_worker(
-        worker_id: int,
-        task_in: TaskCreate,
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user)
+    worker_id: int,
+    task_in: TaskCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Створює задачу для конкретного воркера і відправляє її в Celery."""
     try:
@@ -99,9 +107,9 @@ async def create_task_for_worker(
 
 @router.get("/{worker_id}/tasks", response_model=List[TaskListSchema])
 async def get_worker_tasks(
-        worker_id: int,
-        db: AsyncSession = Depends(get_db),
-        current_user: User = Depends(get_current_user)
+    worker_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Отримує історію завдань конкретного воркера."""
     return await crud.get_task_list(db, worker_id, current_user.id)
