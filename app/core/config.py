@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,6 +21,11 @@ class Settings(BaseSettings):
     AWS_REGION: str = "eu-central-1"
     S3_BUCKET_NAME: str = "test-bucket"
     S3_SCREENSHOT_BUCKET_NAME: str = "test-screenshot"
+
+    SECRET_KEY_ACCESS: str = Field(default="super-secret-key", env="SECRET_KEY_ACCESS")
+    SECRET_KEY_REFRESH: str | None = Field(
+        default="super-refresh-key", env="SECRET_KEY_REFRESH"
+    )
 
     JWT_SIGNING_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120

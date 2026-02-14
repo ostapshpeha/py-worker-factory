@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, Query
 from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -84,12 +84,13 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db
     await session.refresh(new_user)
 
     activation_link = (
-        f"http://localhost:8000/api/v1/user/activate/{activation_token_value}"
+        f"http://localhost:8000/api/v1/user/activate?token={activation_token_value}"
     )
     return UserRegistrationResponseSchema(
         id=new_user.id,
         email=new_user.email,
         is_active=new_user.is_active,
+        activate_token=activation_token_value
     )
 
 
@@ -152,26 +153,23 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@router.post(
-    "/activate",
+@router.get(
+    "/activate", # Змінено на GET
     response_model=ActivationResponse,
     status_code=status.HTTP_200_OK,
     summary="Activate user account",
-    description="Activate user account using activation token from email",
+    description="Activate user account using activation token from URL query string",
 )
 async def activate_user(
-    data: ActivationRequest,
+    token: str = Query(..., description="The activation token sent via email"),
     session: AsyncSession = Depends(get_db),
 ):
     """
-    Activate user account.
-
-    User receives activation token via email after registration.
-    This endpoint validates the token and activates the account.
+    Activate user account via GET request.
     """
     result = await session.execute(
         select(ActivationTokenModel)
-        .where(ActivationTokenModel.token == data.token)
+        .where(ActivationTokenModel.token == token)
         .options(selectinload(ActivationTokenModel.user))
     )
 
@@ -186,7 +184,6 @@ async def activate_user(
     if activation_token.expires_at < datetime.now(timezone.utc):
         await session.delete(activation_token)
         await session.commit()
-
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Activation token has expired",
@@ -204,7 +201,10 @@ async def activate_user(
     await session.delete(activation_token)
     await session.commit()
 
-    return ActivationResponse(detail="Account successfully activated", email=user.email)
+    return ActivationResponse(
+        detail="Account successfully activated",
+        email=user.email
+    )
 
 
 @router.post(

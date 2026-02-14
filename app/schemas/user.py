@@ -26,6 +26,9 @@ class UserRegistrationResponseSchema(BaseModel):
     id: int
     email: EmailStr
     is_active: bool
+    activate_token: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LoginRequest(BaseModel):
