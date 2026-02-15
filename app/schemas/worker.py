@@ -75,6 +75,7 @@ class WorkerRead(WorkerBase):
     # Використовуємо скорочену схему тасок, щоб уникнути "роздування" JSON
     # якщо у воркера буде 1000 виконаних завдань
     tasks: List[TaskListSchema] = []
+    vnc_password: str = None
 
     model_config = ConfigDict(from_attributes=True)
 

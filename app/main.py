@@ -10,7 +10,6 @@ app.include_router(task_router, prefix="/routers/v1")
 app.include_router(worker_router, prefix="/routers/v1")
 
 
-
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "db": "connected"}

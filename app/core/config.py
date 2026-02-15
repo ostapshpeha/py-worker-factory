@@ -11,8 +11,9 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "test_cinema"
 
-    REDIS_HOST: str = "localhost"
+    REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
+    REDIS_URL: str = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
 
     DATABASE_URL_ASYNC: str | None = None
 
@@ -30,6 +31,8 @@ class Settings(BaseSettings):
     JWT_SIGNING_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    GEMINI_API_KEY: str = None
 
     @property
     def database_url_async(self) -> str:

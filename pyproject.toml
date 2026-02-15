@@ -28,7 +28,9 @@ dependencies = [
     "python-multipart (>=0.0.22)",
     "bcrypt (==4.0.1)",
     "aiosmtplib (>=5.1.0,<6.0.0)",
-    "greenlet (>=3.3.1,<4.0.0)"
+    "greenlet (>=3.3.1,<4.0.0)",
+    "protobuf (>=6.33.5,<7.0.0)",
+    "generativeai (>=0.0.1,<0.0.2)"
 ]
 
 

@@ -18,6 +18,10 @@ services:
         condition: service_started
     volumes:
       - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock # НОВЕ: Монтуємо спільний том для коду агента всередину апки
+      - ./agent_code_shared:/app/agent_code_shared
+    networks:
+      - factory_net
 
   db:
     image: postgres:16-alpine
@@ -37,6 +41,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - factory_net
 
 
   redis:
@@ -46,19 +52,30 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - factory_net
 
 
-#  worker:
-#    build: .
-#    container_name: factory_worker
-##    command: celery -A src.core.celery_app worker --loglevel=info
-#    env_file:
-#      - .env
-#    depends_on:
-#      - redis
-#      - db
-#    volumes:
-#      - .:/app
+  celery:
+    build: .
+    container_name: factory_celery
+    # Запускаємо процес Celery замість FastAPI
+    command: celery -A app.core.celery_app worker --loglevel=info
+    volumes:
+      - .:/app
+      # Celery теж потрібен доступ до Docker, щоб відправляти команди в контейнери
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./agent_code_shared:/app/agent_code_shared
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - app
+    networks:
+      - factory_net
 #
 #
 #  beat:
@@ -77,3 +94,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+
+networks:
+  factory_net:
+    # Фіксуємо ім'я мережі, щоб DockerService (Python) точно знав, куди підключати воркерів
+    name: worker_factory_default

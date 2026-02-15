@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Sequence
+from typing import Sequence, Any, Coroutine
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -66,7 +66,11 @@ async def get_worker(
 
 
 async def get_worker_list(session: AsyncSession, user_id: int) -> Sequence[WorkerModel]:
-    query = select(WorkerModel).where(WorkerModel.user_id == user_id)
+    query = (
+        select(WorkerModel)
+        .where(WorkerModel.user_id == user_id)
+        .options(selectinload(WorkerModel.tasks))
+    )
     result = await session.execute(query)
     return result.scalars().all()
 
@@ -91,29 +95,65 @@ async def delete_worker(
     return worker
 
 
+async def update_worker_docker_info(
+    session: AsyncSession,
+    worker_id: int,
+    container_id: str,
+    vnc_port: int,
+    status: WorkerStatus,
+) -> WorkerModel:
+    query = select(WorkerModel).where(WorkerModel.id == worker_id)
+    result = await session.execute(query)
+    worker = result.scalars().first()
+
+    if worker:
+        # 2. Оновлюємо дані
+        worker.container_id = container_id
+        worker.vnc_port = vnc_port
+        worker.status = status
+
+        # 3. Зберігаємо зміни. УВАГА: commit() скидає всі атрибути об'єкта!
+        await session.commit()
+
+    # 4. ФІНАЛЬНИЙ ЗАПИТ: Завантажуємо свіжого воркера РАЗОМ із тасками
+    # Саме цей об'єкт піде в Pydantic, і MissingGreenlet не виникне
+    final_query = (
+        select(WorkerModel)
+        .options(selectinload(WorkerModel.tasks))  # <--- Ключовий рядок!
+        .where(WorkerModel.id == worker_id)
+    )
+    final_result = await session.execute(final_query)
+
+    return final_result.scalars().first()
+
+
 async def create_task(
     session: AsyncSession, task_in: TaskCreate, worker_id: int, user_id: int
-) -> TaskModel:
+) -> tuple[TaskModel, str | None]:
     """Creates a new task and blocks the worker for other tasks."""
 
     worker = await get_worker(session, worker_id, user_id)
 
     if worker.status == WorkerStatus.OFFLINE:
-        raise WorkerOfflineError("Worker offline. Turn it on before task creation.")
+        raise WorkerOfflineError("Worker offline.")
     if worker.status == WorkerStatus.BUSY:
         raise WorkerIsBusyError("Worker is busy.")
 
     new_task = TaskModel(
-        prompt=task_in.prompt, worker_id=worker_id, status=TaskStatus.QUEUED
+        prompt=task_in.prompt,
+        worker_id=worker_id,
+        status=TaskStatus.QUEUED
     )
 
     worker.status = WorkerStatus.BUSY
+    # Зберігаємо container_id в змінну ДО комиту, щоб він не "протух"
+    container_id = worker.container_id
 
     session.add(new_task)
     await session.commit()
-    await session.refresh(new_task)
+    await session.refresh(new_task, ["images"])
 
-    return new_task
+    return new_task, container_id
 
 
 async def get_task(session: AsyncSession, task_id: int, user_id: int) -> TaskModel:

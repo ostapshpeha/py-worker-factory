@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, Query
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    File,
+    Request,
+    Query,
+)
 from sqlalchemy import select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -90,7 +99,7 @@ async def register(user_data: UserCreate, session: AsyncSession = Depends(get_db
         id=new_user.id,
         email=new_user.email,
         is_active=new_user.is_active,
-        activate_token=activation_token_value
+        activate_token=activation_token_value,
     )
 
 
@@ -154,7 +163,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.get(
-    "/activate", # Змінено на GET
+    "/activate",  # Змінено на GET
     response_model=ActivationResponse,
     status_code=status.HTTP_200_OK,
     summary="Activate user account",
@@ -201,10 +210,7 @@ async def activate_user(
     await session.delete(activation_token)
     await session.commit()
 
-    return ActivationResponse(
-        detail="Account successfully activated",
-        email=user.email
-    )
+    return ActivationResponse(detail="Account successfully activated", email=user.email)
 
 
 @router.post(

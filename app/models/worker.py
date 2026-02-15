@@ -13,9 +13,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.db.session import Base
+
 if TYPE_CHECKING:
     from .user import User
-
 
 
 class WorkerStatus(str, Enum):
@@ -60,10 +60,7 @@ class WorkerModel(Base):
         "TaskModel", back_populates="worker", cascade="all, delete-orphan"
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    user: Mapped["User"] = relationship(
-        "User",
-        back_populates="workers"
-    )
+    user: Mapped["User"] = relationship("User", back_populates="workers")
 
 
 class TaskModel(Base):
