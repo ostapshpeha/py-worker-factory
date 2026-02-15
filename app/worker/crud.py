@@ -66,7 +66,11 @@ async def get_worker(
 
 
 async def get_worker_list(session: AsyncSession, user_id: int) -> Sequence[WorkerModel]:
-    query = select(WorkerModel).where(WorkerModel.user_id == user_id)
+    query = (
+        select(WorkerModel)
+        .where(WorkerModel.user_id == user_id)
+        .options(selectinload(WorkerModel.tasks))
+    )
     result = await session.execute(query)
     return result.scalars().all()
 
@@ -92,11 +96,11 @@ async def delete_worker(
 
 
 async def update_worker_docker_info(
-        session: AsyncSession,
-        worker_id: int,
-        container_id: str,
-        vnc_port: int,
-        status: WorkerStatus
+    session: AsyncSession,
+    worker_id: int,
+    container_id: str,
+    vnc_port: int,
+    status: WorkerStatus,
 ) -> WorkerModel:
     query = select(WorkerModel).where(WorkerModel.id == worker_id)
     result = await session.execute(query)
@@ -115,7 +119,7 @@ async def update_worker_docker_info(
     # Саме цей об'єкт піде в Pydantic, і MissingGreenlet не виникне
     final_query = (
         select(WorkerModel)
-        .options(selectinload(WorkerModel.tasks)) # <--- Ключовий рядок!
+        .options(selectinload(WorkerModel.tasks))  # <--- Ключовий рядок!
         .where(WorkerModel.id == worker_id)
     )
     final_result = await session.execute(final_query)

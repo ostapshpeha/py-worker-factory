@@ -6,6 +6,7 @@ from typing import List
 
 from starlette.concurrency import run_in_threadpool
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
 from app.models.worker import WorkerStatus
@@ -25,7 +26,7 @@ from app.exceptions.worker import (
     WorkerIsBusyError,
     WorkerOfflineError,
 )
-
+from app.celery_tasks.worker_tasks import run_oi_agent
 from app.worker.docker_service import docker_service  # Для зупинки контейнера
 
 router = APIRouter(prefix="/workers", tags=["Workers"])
@@ -50,14 +51,14 @@ async def create_worker_endpoint(
             container_id, host_port = await run_in_threadpool(
                 docker_service.create_kasm_worker,
                 worker_name=container_name,
-                vnc_password=vnc_password
+                vnc_password=vnc_password,
             )
         except Exception as docker_error:
             # Якщо Докер впав (немає пам'яті, демон лежить) - прибираємо "сміття" з БД
             await crud.delete_worker(db, worker.id, current_user.id, force=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Не вдалося запустити ізольоване середовище: {str(docker_error)}"
+                detail=f"Не вдалося запустити ізольоване середовище: {str(docker_error)}",
             )
 
         # 4. Зберігаємо отримані дані від Докера в базу
@@ -67,11 +68,16 @@ async def create_worker_endpoint(
             worker_id=worker.id,
             container_id=container_id,
             vnc_port=host_port,
-            status=WorkerStatus.IDLE  # Контейнер піднявся і чекає на задачі
+            status=WorkerStatus.IDLE,  # Контейнер піднявся і чекає на задачі
         )
         updated_worker.vnc_password = vnc_password
-        # (Опціонально) Ти можеш додати vnc_password у WorkerRead схему,
-        # щоб фронтенд міг показати його юзеру для ручного входу по VNC
+        agent_prompt = "Create a file on desktop /home/kasm-user/Desktop with name ai_hello.txt"
+
+        run_oi_agent.delay(
+            container_id=updated_worker.container_id,
+            prompt=agent_prompt,
+            gemini_api_key=settings.GEMINI_API_KEY
+        )
         return updated_worker
 
     except WorkerLimitExceeded as e:
