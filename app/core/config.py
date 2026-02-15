@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
+    GEMINI_API_KEY: str = None
+
     @property
     def database_url_async(self) -> str:
         if self.DATABASE_URL_ASYNC:

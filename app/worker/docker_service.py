@@ -18,7 +18,7 @@ class DockerService:
     # Метод find_free_port ВИДАЛЕНО! Docker зробить це краще.
 
     def create_kasm_worker(
-            self, worker_name: str, vnc_password: str
+        self, worker_name: str, vnc_password: str
     ) -> Tuple[str, int]:
         """
         Запускає контейнер KasmVNC.
@@ -26,8 +26,8 @@ class DockerService:
         """
         try:
             env_vars = {
-                "VNC_USER": "kasm_user",     # Стандартний юзер для вебу
-                "VNC_PW": "qwerty12345",     # Тимчасовий простий пароль без спецсимволів
+                "VNC_USER": "kasm_user",  # Стандартний юзер для вебу
+                "VNC_PW": "qwerty12345",  # Тимчасовий простий пароль без спецсимволів
                 "VNC_VIEW_ONLY": "false",
                 "APP_ARGS": "--no-sandbox",
             }
@@ -35,19 +35,16 @@ class DockerService:
             # Запуск контейнера
             # Вказуємо тип `Container` для PyCharm, щоб працювало автодоповнення
             container: Container = self.client.containers.run(
-                image="kasmweb/core-ubuntu-focal:1.16.0",
+                image="custom-kasm-worker:latest",
                 name=worker_name,
                 detach=True,
-
                 # ДОВІРЯЄМО ПОРТИ ДОКЕРУ:
                 # Це змусить Docker автоматично вибрати вільний порт (починаючи з 32768+)
                 ports={"6901/tcp": None},
-
                 environment=env_vars,
                 shm_size="512m",
                 mem_limit="1500m",
                 nano_cpus=1000000000,
-
                 # ВИПРАВЛЕННЯ ТОМІВ: Використовуємо іменований том, спільний для бази та воркерів
                 # (Його треба буде додати в docker-compose.yml)
                 volumes={
@@ -56,7 +53,6 @@ class DockerService:
                         "mode": "ro",
                     }
                 },
-
                 # Додаємо воркера в спільну мережу, щоб він міг бачити БД або Redis
                 network="worker_factory_default",
                 restart_policy={"Name": "on-failure", "MaximumRetryCount": 3},
@@ -66,7 +62,11 @@ class DockerService:
             container.reload()  # Оновлюємо метадані контейнера
 
             # Парсимо словник з портами: NetworkSettings -> Ports -> '6901/tcp' -> HostPort
-            ports_info = container.attrs.get("NetworkSettings", {}).get("Ports", {}).get("6901/tcp")
+            ports_info = (
+                container.attrs.get("NetworkSettings", {})
+                .get("Ports", {})
+                .get("6901/tcp")
+            )
 
             if not ports_info:
                 # Fallback, якщо щось пішло не так і порт не прокинувся
@@ -96,11 +96,17 @@ class DockerService:
         except APIError as e:
             logger.error(f"Error stopping worker {container_id}: {e}")
 
-    def execute_command(self, container_id: str, command: str) -> str:
+    def execute_command(self, container_id: str, command: str, user: str = "kasm-user") -> str:
+        """
+        Виконує команду всередині контейнера.
+        """
         try:
             container: Container = self.client.containers.get(container_id)
+
+            workdir = "/home/kasm-user/agent" if user == "kasm-user" else "/"
+
             exit_code, output = container.exec_run(
-                command, user="kasm-user", workdir="/home/kasm-user/agent"
+                command, user=user, workdir=workdir
             )
             return output.decode("utf-8")
         except NotFound:
