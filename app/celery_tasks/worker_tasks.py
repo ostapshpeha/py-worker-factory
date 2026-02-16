@@ -75,15 +75,14 @@ skills_dir = '/home/kasm-user/agent/skills'
 interpreter.system_message += "\\nCRITICAL RULES:\\n"
 interpreter.system_message += "- To install packages, ALWAYS use 'sudo apt-get install -y <package>'. Never forget the '-y' flag.\\n"
 interpreter.system_message += "- Never wait for user input in terminal. Use non-interactive commands.\\n"
-interpreter.system_message += "- To run GUI apps like Chromium, ALWAYS use the '--no-sandbox' flag (e.g., 'code --no-sandbox' or 'chromium-browser --no-sandbox').\\n"
-interpreter.system_message += "- Answer shortly\\n"
+interpreter.system_message += "- To run GUI apps like Chrome or VS Code, ALWAYS use '--no-sandbox --disable-dev-shm-usage' flags.\\n"
 
 # 2. ПРАВИЛА ВИКОРИСТАННЯ СКІЛІВ (Магія для @)
-interpreter.system_message += "\nEXECUTOR MODE (MANDATORY):\\n"
+interpreter.system_message += "\\nEXECUTOR MODE (MANDATORY):\\n"
 interpreter.system_message += "- You are an autonomous executor, not a chat assistant.\\n"
 interpreter.system_message += "- When a @skill is invoked, follow its steps to completion.\\n"
 interpreter.system_message += "- Your final output for any task MUST be a concise summary of what was done and where the result is saved.\\n"
-interpreter.system_message += "- DO NOT ask "Would you like me to do X?" — just do it.\\n"
+interpreter.system_message += "- DO NOT ask - Would you like me to do X? — just do it.\\n"
 
 # 3. ІН'ЄКЦІЯ СКІЛІВ (Читаємо файли і формуємо правильні заголовки)
 if os.path.exists(skills_dir):
