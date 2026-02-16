@@ -13,9 +13,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.db.session import Base
-
 if TYPE_CHECKING:
-    from .user import User
+    from app.models.user import User
 
 
 class WorkerStatus(str, Enum):
@@ -105,3 +104,4 @@ class TaskImageModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     task: Mapped["TaskModel"] = relationship("TaskModel", back_populates="images")
+

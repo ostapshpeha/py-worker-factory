@@ -8,12 +8,11 @@ from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.user import User
+from app.models import User
 from app.models.worker import WorkerStatus
 from app.schemas.worker import (
     WorkerCreate,
     WorkerRead,
-    WorkerUpdate,
     TaskListSchema,
     TaskCreate,
     TaskRead,

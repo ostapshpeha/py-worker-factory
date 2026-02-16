@@ -30,7 +30,8 @@ dependencies = [
     "aiosmtplib (>=5.1.0,<6.0.0)",
     "greenlet (>=3.3.1,<4.0.0)",
     "protobuf (>=6.33.5,<7.0.0)",
-    "generativeai (>=0.0.1,<0.0.2)"
+    "generativeai (>=0.0.1,<0.0.2)",
+    "psycopg2 (>=2.9.11,<3.0.0)"
 ]
 
 
