@@ -4,7 +4,7 @@ from starlette import status
 
 from app.db.session import get_db
 from app.exceptions.worker import TaskNotFound, TaskIsProcessingError
-from app.models.user import User
+from app.models import User
 from app.schemas.worker import TaskRead
 from app.user.dependencies import get_current_user
 from app.worker import crud

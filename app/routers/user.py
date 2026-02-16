@@ -18,8 +18,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.s3 import S3Service
 from app.user.dependencies import get_current_user, get_current_user_profile
+from app.models import User
 from app.models.user import (
-    User,
     ActivationTokenModel,
     RefreshTokenModel,
     UserProfileModel,

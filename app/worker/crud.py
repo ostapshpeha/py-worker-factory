@@ -13,8 +13,8 @@ from app.exceptions.worker import (
     TaskNotFound,
     TaskIsProcessingError,
 )
+from app.models import WorkerModel
 from app.models.worker import (
-    WorkerModel,
     WorkerStatus,
     TaskModel,
     TaskStatus,
