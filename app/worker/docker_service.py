@@ -1,3 +1,5 @@
+import os
+
 import docker
 import logging
 from typing import Tuple, Optional
@@ -31,9 +33,16 @@ class DockerService:
                 "VNC_VIEW_ONLY": "false",
                 "APP_ARGS": "--no-sandbox",
             }
+            host_absolute_path = "C:/Users/stark/py-woker-factory/agent_code_shared"
+            # base_host_path = os.getenv("HOST_PROJECT_PATH", "/app")
+            # host_volume_path = f"{base_host_path}/agent_code_shared"
+            volumes = {
+                host_absolute_path: {
+                    "bind": "/home/kasm-user/agent",
+                    "mode": "rw"
+                }
+            }
 
-            # Запуск контейнера
-            # Вказуємо тип `Container` для PyCharm, щоб працювало автодоповнення
             container: Container = self.client.containers.run(
                 image="custom-kasm-worker:latest",
                 name=worker_name,
@@ -45,15 +54,7 @@ class DockerService:
                 shm_size="512m",
                 mem_limit="1500m",
                 nano_cpus=1000000000,
-                # ВИПРАВЛЕННЯ ТОМІВ: Використовуємо іменований том, спільний для бази та воркерів
-                # (Його треба буде додати в docker-compose.yml)
-                volumes={
-                    "worker_agent_code_vol": {
-                        "bind": "/home/kasm-user/agent",
-                        "mode": "ro",
-                    }
-                },
-                # Додаємо воркера в спільну мережу, щоб він міг бачити БД або Redis
+                volumes=volumes,
                 network="worker_factory_default",
                 restart_policy={"Name": "on-failure", "MaximumRetryCount": 3},
             )
