@@ -6,4 +6,5 @@
   docker exec -it worker_factory_app alembic upgrade head
   https://localhost:port/vnc.html
   https://localhost:port/index.html
+  docker build -t custom-kasm-worker:latest -f Dockerfile-worker .
 ```

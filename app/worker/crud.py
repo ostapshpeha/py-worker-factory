@@ -196,35 +196,35 @@ async def delete_task(session: AsyncSession, task_id: int, user_id: int) -> Task
     return task
 
 
-async def update_task_result(
-    session: AsyncSession,
-    task_id: int,
-    status: TaskStatus,
-    result: str = None,
-    logs: str = None,
-) -> TaskModel:
-    """
-    Called by background worker Celery when Gemini is finished.
-    Updates the status of the task and frees the Docker slot (puts it in IDLE).
-    """
-    query = (
-        select(TaskModel)
-        .options(selectinload(TaskModel.worker))
-        .where(TaskModel.id == task_id)
-    )
-    res = await session.execute(query)
-    task = res.scalars().first()
-
-    if task:
-        task.status = status
-        if result:
-            task.result = result
-        if logs:
-            task.logs = logs
-
-        if status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-            task.finished_at = datetime.now(timezone.utc)
-            task.worker.status = WorkerStatus.IDLE
-
-        await session.commit()
-    return task
+# async def update_task_result(
+#     session: AsyncSession,
+#     task_id: int,
+#     status: TaskStatus,
+#     result: str = None,
+#     logs: str = None,
+# ) -> TaskModel:
+#     """
+#     Called by background worker Celery when Gemini is finished.
+#     Updates the status of the task and frees the Docker slot (puts it in IDLE).
+#     """
+#     query = (
+#         select(TaskModel)
+#         .options(selectinload(TaskModel.worker))
+#         .where(TaskModel.id == task_id)
+#     )
+#     res = await session.execute(query)
+#     task = res.scalars().first()
+#
+#     if task:
+#         task.status = status
+#         if result:
+#             task.result = result
+#         if logs:
+#             task.logs = logs
+#
+#         if status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
+#             task.finished_at = datetime.now(timezone.utc)
+#             task.worker.status = WorkerStatus.IDLE
+#
+#         await session.commit()
+#     return task
