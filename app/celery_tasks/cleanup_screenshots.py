@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from celery import shared_task
 from app.db.session import SessionLocal
 from app.models.worker import ImageModel
-from app.core.s3 import s3_client
+from app.core.s3 import s3_service
 
 
 @shared_task(name="cleanup_old_screenshots")
@@ -16,9 +16,7 @@ def cleanup_old_screenshots():
         deleted_count = 0
         for img in old_images:
             try:
-                # 1. Видаляємо фізичний файл з S3
-                # Витягуємо ключ (key) з s3_url, якщо потрібно для твого s3_service
-                s3_client.delete_file(img.s3_url)
+                s3_service.delete_file(img.s3_url)
 
                 db.delete(img)
                 deleted_count += 1
