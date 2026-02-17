@@ -23,13 +23,13 @@ class DockerService:
         self, worker_name: str, vnc_password: str
     ) -> Tuple[str, int]:
         """
-        Запускає контейнер KasmVNC.
-        Повертає: (container_id, mapped_host_port)
+        Starts the KasmVNC container.
+        Returns: (container_id, mapped_host_port)
         """
         try:
             env_vars = {
-                "VNC_USER": "kasm_user",  # Стандартний юзер для вебу
-                "VNC_PW": "qwerty12345",  # Тимчасовий простий пароль без спецсимволів
+                "VNC_USER": "kasm_user",
+                "VNC_PW": vnc_password,
                 "VNC_VIEW_ONLY": "false",
                 "APP_ARGS": "--no-sandbox",
             }
@@ -47,8 +47,6 @@ class DockerService:
                 image="custom-kasm-worker:latest",
                 name=worker_name,
                 detach=True,
-                # ДОВІРЯЄМО ПОРТИ ДОКЕРУ:
-                # Це змусить Docker автоматично вибрати вільний порт (починаючи з 32768+)
                 ports={"6901/tcp": None},
                 environment=env_vars,
                 shm_size="512m",
@@ -99,7 +97,7 @@ class DockerService:
 
     def execute_command(self, container_id: str, command: str, user: str = "kasm-user") -> str:
         """
-        Виконує команду всередині контейнера.
+        Executes a command inside a container.
         """
         try:
             container: Container = self.client.containers.get(container_id)

@@ -40,42 +40,39 @@ class S3Service:
             "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
             "region_name": settings.AWS_REGION,
         }
-        self.bucket_name = settings.S3_BUCKET_NAME
+        self.default_bucket = settings.S3_BUCKET_NAME
 
-    async def upload_file(
-        self, file_data: bytes, object_name: str, content_type: str
-    ) -> str:
+    async def upload_bytes(
+            self, file_data: bytes, object_name: str, content_type: str = "image/png") -> str:
+        target_bucket = self.default_bucket
         try:
             async with self.session.client("s3", **self.config) as client:
                 await client.put_object(
-                    Bucket=self.bucket_name,
+                    Bucket=target_bucket,
                     Key=object_name,
                     Body=file_data,
                     ContentType=content_type,
                 )
-            return object_name
+                return f"https://{target_bucket}.s3.{settings.AWS_REGION}.amazonaws.com/{object_name}"
         except Exception as e:
             print(f"S3 Upload Error: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error uploading file to storage",
-            )
+            return ""
 
     async def delete_file(self, object_name: str):
         try:
             async with self.session.client("s3", **self.config) as client:
-                await client.delete_object(Bucket=self.bucket_name, Key=object_name)
+                await client.delete_object(Bucket=self.default_bucket, Key=object_name)
         except Exception as e:
             print(f"S3 Delete Error: {e}")
 
     async def generate_presigned_url(
-        self, object_name: str, expiration: int = 3600
+        self, object_name: str, expiration: int = 36000
     ) -> str:
         try:
             async with self.session.client("s3", **self.config) as client:
                 response = await client.generate_presigned_url(
                     "get_object",
-                    Params={"Bucket": self.bucket_name, "Key": object_name},
+                    Params={"Bucket": self.default_bucket, "Key": object_name},
                     ExpiresIn=expiration,
                 )
             return response
@@ -84,4 +81,4 @@ class S3Service:
             return ""
 
 
-s3_client = S3Service()
+s3_service = S3Service()

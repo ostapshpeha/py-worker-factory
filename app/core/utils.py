@@ -1,6 +1,14 @@
+import asyncio
+import io
+import time
+import tarfile
 from io import BytesIO
 from PIL import Image
 from fastapi import UploadFile, HTTPException, status
+
+from app.core.config import settings
+from app.core.s3 import s3_service
+from app.worker.docker_service import docker_service
 
 
 def process_avatar(file: UploadFile) -> bytes:
@@ -40,3 +48,32 @@ def process_avatar(file: UploadFile) -> bytes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid image file"
         )
+
+
+def capture_desktop_screenshot(container_id: str, worker_id: int) -> str:
+    tmp_path = "/tmp/screen.png"
+
+    docker_service.execute_command(container_id, f"scrot {tmp_path}", user="kasm-user")
+
+    container = docker_service.client.containers.get(container_id)
+    bits, stat = container.get_archive(tmp_path)
+
+    file_obj = io.BytesIO(b"".join(b for b in bits))
+    tar = tarfile.open(fileobj=file_obj)
+    member = tar.getmember("screen.png")
+    png_bytes = tar.extractfile(member).read()
+
+    object_key = f"results/worker_{worker_id}/{int(time.time())}.png"
+
+    asyncio.run(s3_service.upload_bytes(
+        png_bytes,
+        object_key,
+    ))
+
+    url = asyncio.run(s3_service.generate_presigned_url(
+        object_key,
+    ))
+
+    docker_service.execute_command(container_id, f"rm {tmp_path}", user="kasm-user")
+
+    return url

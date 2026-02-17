@@ -3,7 +3,6 @@ import datetime
 import logging
 from datetime import datetime, timezone
 from celery.exceptions import SoftTimeLimitExceeded
-from sqlalchemy import null
 
 from app.core.celery_app import celery_app
 from app.db.session import SessionLocal
@@ -29,7 +28,7 @@ def run_oi_agent(self, container_id: str, gemini_api_key: str):
     # Використовуємо && щоб процес зупинився, якщо щось піде не так
     install_cmd = """bash -c "
         sudo apt update && 
-        sudo apt install -y w3m curl wget jq gedit nano pandoc texlive-base wkhtmltopdf csvkit sqlite3 plantuml tree fzf geany && 
+        sudo apt install -y scrot w3m curl wget jq gedit nano pandoc texlive-base wkhtmltopdf csvkit sqlite3 plantuml tree fzf geany && 
         wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb && 
         sudo apt install -y ./google-chrome-stable_current_amd64.deb && 
         rm ./google-chrome-stable_current_amd64.deb
@@ -54,13 +53,13 @@ f"os.environ['GEMINI_API_KEY']='{gemini_api_key}'; "
     return {"status": "initialized"}
 
 
-@celery_app.task(bind=True, name="execute_worker_task", soft_time_limit=300, time_limit=310)
+@celery_app.task(bind=True, name="execute_worker_task", soft_time_limit=500, time_limit=510)
 def execute_worker_task(self, task_id: int, worker_id: int, container_id: str, prompt: str, gemini_api_key: str):
     logger.info(f"▶️ Executing task {task_id} via Base64 Injection")
     status_check = docker_service.execute_command(container_id, "whoami", user="kasm-user")
     logger.info(f"🔍 Container user check: {status_check}")
 
-    # Формуємо Python-скрипт з ін'єкцією скілів та жорсткими правилами системи
+    # Python script injection
     python_script = f"""
 import os, json, sys, glob
 from interpreter import interpreter
@@ -118,13 +117,12 @@ except Exception as e:
     encoded_script = base64.b64encode(python_script.encode('utf-8')).decode('utf-8')
     run_cmd = f"python3 -c \"import base64; exec(base64.b64decode('{encoded_script}').decode('utf-8'))\""
 
-    db = SessionLocal()  # Відкриваємо синхронну сесію
+    db = SessionLocal()
     try:
         logger.info(f"🛠 Running command: {run_cmd[:100]}...")
-        # Виконуємо в контейнері
+
         output = docker_service.execute_command(container_id, run_cmd, user="kasm-user")
 
-        # Парсимо вивід, щоб дістати чисту відповідь агента або помилку
         final_result = output
         if "===AGENT_FINAL_REPLY===" in output:
             final_result = output.split("===AGENT_FINAL_REPLY===")[-1].strip()
@@ -132,14 +130,12 @@ except Exception as e:
             error_msg = output.split("===INTERNAL_ERROR===")[-1].strip()
             raise Exception(f"Agent crashed internally: {error_msg}")
 
-        # ОНОВЛЕННЯ БД (Синхронне)
         task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
         worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
 
         if task:
             task.status = TaskStatus.COMPLETED
-            task.result = final_result
-            task.logs = output
+            task.logs = final_result
             task.finished_at = datetime.now(timezone.utc)
         if worker:
             worker.status = WorkerStatus.IDLE
@@ -158,7 +154,6 @@ except Exception as e:
         if task:
             task.status = TaskStatus.FAILED
             task.result = "Error: Task execution exceeded the 5-minute time limit."
-            task.logs = null
             task.finished_at = datetime.now(timezone.utc)
         if worker:
             worker.status = WorkerStatus.IDLE
@@ -175,7 +170,6 @@ except Exception as e:
         if task:
             task.status = TaskStatus.FAILED
             task.result = str(e)
-            task.logs = null
             task.finished_at = datetime.now(timezone.utc)
         if worker:
             worker.status = WorkerStatus.IDLE

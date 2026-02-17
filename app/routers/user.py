@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timezone, timedelta
 
 from fastapi import (
@@ -6,9 +5,6 @@ from fastapi import (
     Depends,
     HTTPException,
     status,
-    UploadFile,
-    File,
-    Request,
     Query,
 )
 from sqlalchemy import select, delete
@@ -551,35 +547,35 @@ async def update_my_profile(
     return response
 
 
-@router.patch("/profile/avatar")
-async def update_avatar(
-    file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
-    profile: UserProfileModel = Depends(get_current_user_profile),
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Downloads avatar, deletes old one from S3, updates DB.
-    If there is no profile, it throws an error (the user must first create a profile).
-    """
-    if not profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Profile not found. Create profile before uploading avatar.",
-        )
-
-    processed_image = process_avatar(file)
-
-    s3_key = f"profiles/{user.id}/{uuid.uuid4()}.webp"
-
-    if profile.avatar:
-        await s3_service.delete_file(profile.avatar)
-
-    await s3_service.upload_file(processed_image, s3_key, "image/webp")
-
-    profile.avatar = s3_key
-    await db.commit()
-
-    new_avatar_url = await s3_service.generate_presigned_url(s3_key)
-
-    return {"message": "Avatar updated", "avatar_url": new_avatar_url}
+# @router.patch("/profile/avatar")
+# async def update_avatar(
+#     file: UploadFile = File(...),
+#     user: User = Depends(get_current_user),
+#     profile: UserProfileModel = Depends(get_current_user_profile),
+#     db: AsyncSession = Depends(get_db),
+# ):
+#     """
+#     Downloads avatar, deletes old one from S3, updates DB.
+#     If there is no profile, it throws an error (the user must first create a profile).
+#     """
+#     if not profile:
+#         raise HTTPException(
+#             status_code=status.HTTP_404_NOT_FOUND,
+#             detail="Profile not found. Create profile before uploading avatar.",
+#         )
+#
+#     processed_image = process_avatar(file)
+#
+#     s3_key = f"profiles/{user.id}/{uuid.uuid4()}.webp"
+#
+#     if profile.avatar:
+#         await s3_service.delete_file(profile.avatar)
+#
+#     await s3_service.upload_file(processed_image, s3_key, "image/webp")
+#
+#     profile.avatar = s3_key
+#     await db.commit()
+#
+#     new_avatar_url = await s3_service.generate_presigned_url(s3_key)
+#
+#     return {"message": "Avatar updated", "avatar_url": new_avatar_url}
