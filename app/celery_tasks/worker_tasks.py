@@ -15,15 +15,15 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(bind=True, name="run_oi_agent")
 def run_oi_agent(self, container_id: str, gemini_api_key: str):
-    logger.info(f"⚙️ Ініціалізація та перевірка зв'язку для {container_id}")
+    logger.info(f"⚙️ Initialization container {container_id}")
 
     # 1. Даємо права sudo (від root)
     fix_sudo_cmd = "sh -c 'echo \"kasm-user ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers'"
     try:
         docker_service.execute_command(container_id, fix_sudo_cmd, user="root")
-        logger.info("✅ Права sudo налаштовані!")
+        logger.info("✅ Sudo is valid!")
     except Exception as e:
-        logger.error(f"❌ Не вдалося налаштувати sudo: {e}")
+        logger.error(f"❌ Can't set sudo: {e}")
 
     # 2. Встановлюємо всі програми через bash (від kasm-user)
     # Використовуємо && щоб процес зупинився, якщо щось піде не так
@@ -35,7 +35,7 @@ def run_oi_agent(self, container_id: str, gemini_api_key: str):
         rm ./google-chrome-stable_current_amd64.deb
     " """
 
-    logger.info("📦 Встановлення пакетів...")
+    logger.info("📦 Installing packages...")
     docker_service.execute_command(container_id, install_cmd, user="kasm-user")
 
 
@@ -146,11 +146,11 @@ except Exception as e:
 
         db.commit()
 
-        logger.info(f"✅ Task {task_id} completed successfully")
+        logger.info(f"Task {task_id} completed successfully")
         return {"status": "success", "output": final_result}
 
     except SoftTimeLimitExceeded:
-        logger.warning(f"⏳ Task {task_id} exceeded 5-minute time limit!")
+        logger.warning(f"Task {task_id} exceeded 5-minute time limit!")
 
         task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
         worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
@@ -167,9 +167,8 @@ except Exception as e:
         return {"status": "error", "error": "Timeout"}
 
     except Exception as e:
-        logger.error(f"❌ Task {task_id} failed: {str(e)}")
+        logger.error(f"Task {task_id} failed: {str(e)}")
 
-        # ОНОВЛЕННЯ БД НА FAILED
         task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
         worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
 

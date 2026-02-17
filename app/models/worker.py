@@ -31,13 +31,6 @@ class TaskStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
-
-class TaskImageType(str, Enum):
-    INPUT = "INPUT"  # Початковий стан
-    RESULT = "RESULT"  # Фінальний результат
-    ERROR = "ERROR"
-
-
 # --- MODELS ---
 
 
@@ -99,7 +92,6 @@ class TaskImageModel(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"))
 
-    image_type: Mapped[TaskImageType] = mapped_column(String, nullable=False)
     s3_url: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
