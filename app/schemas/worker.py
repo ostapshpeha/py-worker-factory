@@ -3,14 +3,13 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.worker import WorkerStatus, TaskStatus, TaskImageType
+from app.models.worker import WorkerStatus, TaskStatus
 
 
-class TaskImageRead(BaseModel):
+class ImageRead(BaseModel):
     id: int
-    task_id: int
-    image_type: TaskImageType
     s3_url: str
+    worker_id: int
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -36,8 +35,6 @@ class TaskRead(TaskBase):
     logs: Optional[str] = None
     created_at: datetime
     finished_at: Optional[datetime] = None
-
-    images: List[TaskImageRead] = []
 
     model_config = ConfigDict(from_attributes=True)
 

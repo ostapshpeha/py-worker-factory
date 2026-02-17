@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Optional, List, TYPE_CHECKING
 
@@ -10,7 +10,7 @@ from sqlalchemy import (
     func,
     Text,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
 if TYPE_CHECKING:
@@ -79,21 +79,14 @@ class TaskModel(Base):
     finished_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    images: Mapped[list["TaskImageModel"]] = relationship(
-        "TaskImageModel", back_populates="task", cascade="all, delete-orphan"
-    )
     worker_id: Mapped[int] = mapped_column(ForeignKey("workers.id"))
     worker: Mapped["WorkerModel"] = relationship("WorkerModel", back_populates="tasks")
 
 
-class TaskImageModel(Base):
+class ImageModel(Base):
     __tablename__ = "task_images"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id"))
-
+    worker_id: Mapped[int] = mapped_column(ForeignKey("workers.id", ondelete="CASCADE"))
     s3_url: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-
-    task: Mapped["TaskModel"] = relationship("TaskModel", back_populates="images")
-

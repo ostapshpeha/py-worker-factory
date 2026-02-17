@@ -18,8 +18,6 @@ from app.models.worker import (
     WorkerStatus,
     TaskModel,
     TaskStatus,
-    TaskImageType,
-    TaskImageModel,
 )
 from app.schemas.worker import WorkerCreate, TaskCreate
 
@@ -163,7 +161,6 @@ async def get_task(session: AsyncSession, task_id: int, user_id: int) -> TaskMod
     query = (
         select(TaskModel)
         .join(WorkerModel)
-        .options(selectinload(TaskModel.images))
         .where(TaskModel.id == task_id, WorkerModel.user_id == user_id)
     )
     result = await session.execute(query)
@@ -237,16 +234,3 @@ async def update_task_result(
 
         await session.commit()
     return task
-
-
-async def add_task_image(
-    session: AsyncSession, task_id: int, image_type: TaskImageType, s3_url: str
-) -> TaskImageModel:
-    """
-    Saving logs about loaded screen in S3 storage
-    """
-    new_image = TaskImageModel(task_id=task_id, image_type=image_type, s3_url=s3_url)
-    session.add(new_image)
-    await session.commit()
-    await session.refresh(new_image)
-    return new_image
