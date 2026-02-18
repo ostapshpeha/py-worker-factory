@@ -7,8 +7,7 @@ celery_app = Celery(
     "worker_factory",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["app.celery_tasks.worker_tasks",
-             "app.celery_tasks.screenshot_tasks"],
+    include=["app.celery_tasks.worker_tasks"],
 )
 
 celery_app.conf.update(

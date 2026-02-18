@@ -28,9 +28,9 @@ Create a structured document containing:
 - **Required Tools:** What apt/pip packages will be needed?
 
 ### 3️⃣ Save the Document
-Save this exact structure into a file named `ARCHITECTURE_PLAN.md` on the Desktop (`/home/kasm-user/Desktop/ARCHITECTURE_PLAN.md`).
+Save this exact structure into a file named `ARCHITECTURE_PLAN.md` 
+on the Desktop (`/home/kasm-user/Desktop/ARCHITECTURE_PLAN.md`).
 
 ### 4️⃣ Final Output
-Once the file is saved, print ONLY this message to the console:
-"Plan created successfully and saved to Desktop. Review the assumptions before asking me to execute the steps."
-Stop execution immediately after printing this.
+Once the file is saved, open it using geany /home/kasm-user/Desktop/ARCHITECTURE_PLAN.md &.
+Then print ONLY this message to the console: 'Plan created successfully...'

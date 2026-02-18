@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/py-woker-factory.iml" filepath="$PROJECT_DIR$/.idea/py-woker-factory.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/py-worker-factory.iml" filepath="$PROJECT_DIR$/.idea/py-worker-factory.iml" />
     </modules>
   </component>
 </project>

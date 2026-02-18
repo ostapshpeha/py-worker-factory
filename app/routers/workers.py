@@ -15,10 +15,12 @@ from app.models import User
 from app.models.worker import WorkerStatus, WorkerModel, ImageModel
 from app.schemas.worker import (
     WorkerCreate,
-    WorkerRead,
     TaskListSchema,
     TaskCreate,
-    TaskRead, ImageRead,
+    TaskRead,
+    ImageRead,
+    WorkerStatusRead,
+    WorkerRead,
 )
 from app.user.dependencies import get_current_user
 from app.worker import crud
@@ -30,11 +32,21 @@ from app.exceptions.worker import (
 )
 from app.celery_tasks.worker_tasks import run_oi_agent, execute_worker_task
 from app.worker.docker_service import docker_service
+from app.worker.crud import stop_worker_container, start_worker_container
 
 router = APIRouter(prefix="/workers", tags=["Workers"])
 
 
-@router.post("/", response_model=WorkerRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=WorkerRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create new VM and AI agent",
+    description="""
+        Installing apps on new computer  (3-4 mins), after creating, gets full info of VM.
+        User need to wait before executing tasks for correct work. You need to save VNC password.
+        """
+)
 async def create_worker_endpoint(
     worker_in: WorkerCreate,
     db: AsyncSession = Depends(get_db),
@@ -78,7 +90,7 @@ async def create_worker_endpoint(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
 
 
-@router.get("/", response_model=List[WorkerRead])
+@router.get("/", response_model=WorkerStatusRead)
 async def get_workers_endpoint(
     db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
@@ -147,7 +159,10 @@ async def create_task_for_worker(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
-@router.get("/{worker_id}/tasks", response_model=List[TaskListSchema])
+@router.get("/{worker_id}/tasks",
+            response_model=List[TaskListSchema],
+            summary="Gets task history"
+)
 async def get_worker_tasks(
     worker_id: int,
     db: AsyncSession = Depends(get_db),
@@ -157,7 +172,11 @@ async def get_worker_tasks(
     return await crud.get_task_list(db, worker_id, current_user.id)
 
 
-@router.get("/workers/{worker_id}/screenshot", response_model=ImageRead)
+@router.get(
+    "/workers/{worker_id}/screenshot",
+    response_model=ImageRead,
+    summary="Get a screenshot of VirtualMachine",
+)
 async def get_worker_screen(
         worker_id: int,
         session: AsyncSession = Depends(get_db),
@@ -191,7 +210,6 @@ async def get_worker_screen(
             return latest_img
 
     try:
-        # Виконуємо синхронний код Docker у пулі потоків, щоб не "повісити" FastAPI
         s3_url = await run_in_threadpool(capture_desktop_screenshot, worker.container_id, worker_id)
 
         new_image = ImageModel(worker_id=worker_id, s3_url=s3_url)
@@ -204,3 +222,66 @@ async def get_worker_screen(
     except Exception as e:
         print(f"Error capturing screen: {e}")
         raise HTTPException(status_code=500, detail="Failed to capture screenshot")
+
+
+@router.post(
+    "/{worker_id}/stop",
+    response_model=WorkerStatusRead,
+    summary="Stop worker container",
+    description="""
+    Puts the container into a sleep state (OFFLINE). Frees RAM but keeps files on disk.
+    If the worker is busy (BUSY), the request will be rejected unless `force=true` is passed.
+    """
+)
+async def stop_worker_endpoint(
+    worker_id: int,
+    force: bool = Query(False, description="Force kill the container even if it is running a task (BUSY)"),
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    worker = await stop_worker_container(session, worker_id, current_user.id, force)
+    return worker
+
+
+@router.post(
+    "/{worker_id}/start",
+    response_model=WorkerStatusRead,
+    summary="Start a stopped worker",
+    description="Wakes up a stopped container and puts it in IDLE status, ready to accept new tasks."
+)
+async def start_worker_endpoint(
+    worker_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    worker = await start_worker_container(session, worker_id, current_user.id)
+    return worker
+
+
+@router.get("/{worker_id}/screenshots", response_model=List[ImageRead])
+async def get_worker_screenshots(
+    worker_id: int,
+    session: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    """
+    Get a complete list of screenshots for a specific worker.
+    Results are sorted from newest to oldest.
+    """
+    worker_stmt = select(WorkerModel).where(
+        WorkerModel.id == worker_id,
+        WorkerModel.user_id == current_user.id
+    )
+    worker_res = await session.execute(worker_stmt)
+    if not worker_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Worker not found or access denied")
+
+    img_stmt = (
+        select(ImageModel)
+        .where(ImageModel.worker_id == worker_id)
+        .order_by(ImageModel.created_at.desc())
+    )
+    img_res = await session.execute(img_stmt)
+    screenshots = img_res.scalars().all()
+
+    return screenshots

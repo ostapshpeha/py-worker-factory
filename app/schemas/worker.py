@@ -65,14 +65,20 @@ class WorkerRead(WorkerBase):
     user_id: int
     status: WorkerStatus
 
-    # Зробили Optional, бо при статусі OFFLINE контейнера не існує
     container_id: Optional[str] = None
     vnc_port: Optional[int] = None
 
-    # Використовуємо скорочену схему тасок, щоб уникнути "роздування" JSON
-    # якщо у воркера буде 1000 виконаних завдань
     tasks: List[TaskListSchema] = []
     vnc_password: str = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WorkerStatusRead(BaseModel):
+    id: int
+    name: str
+    status: str
+    container_id: str | None
 
     model_config = ConfigDict(from_attributes=True)
 

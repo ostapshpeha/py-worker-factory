@@ -14,6 +14,14 @@ logger = logging.getLogger(__name__)
 
 @celery_app.task(bind=True, name="run_oi_agent")
 def run_oi_agent(self, container_id: str, gemini_api_key: str):
+    """
+    Attention frontend: user need to wait 3-4 minutes while ubuntu installing
+    apps for new computer
+    :param self:
+    :param container_id:
+    :param gemini_api_key:
+    :return:
+    """
     logger.info(f"⚙️ Initialization container {container_id}")
 
     # 1. Даємо права sudo (від root)
@@ -119,8 +127,10 @@ except Exception as e:
 
     db = SessionLocal()
     try:
-        logger.info(f"🛠 Running command: {run_cmd[:100]}...")
+        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
+        worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
 
+        logger.info(f"🛠 Running command: {run_cmd[:100]}...")
         output = docker_service.execute_command(container_id, run_cmd, user="kasm-user")
 
         final_result = output
@@ -130,52 +140,38 @@ except Exception as e:
             error_msg = output.split("===INTERNAL_ERROR===")[-1].strip()
             raise Exception(f"Agent crashed internally: {error_msg}")
 
-        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-        worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
-
         if task:
             task.status = TaskStatus.COMPLETED
             task.logs = final_result
-            task.finished_at = datetime.now(timezone.utc)
-        if worker:
-            worker.status = WorkerStatus.IDLE
-
-        db.commit()
 
         logger.info(f"Task {task_id} completed successfully")
-        return {"status": "success", "output": final_result}
+        result_payload = {"status": "success", "output": final_result}
 
     except SoftTimeLimitExceeded:
         logger.warning(f"Task {task_id} exceeded 5-minute time limit!")
 
-        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-        worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
-
         if task:
             task.status = TaskStatus.FAILED
             task.result = "Error: Task execution exceeded the 5-minute time limit."
-            task.finished_at = datetime.now(timezone.utc)
-        if worker:
-            worker.status = WorkerStatus.IDLE
 
-        db.commit()
-        return {"status": "error", "error": "Timeout"}
+        result_payload = {"status": "error", "error": "Timeout"}
 
     except Exception as e:
         logger.error(f"Task {task_id} failed: {str(e)}")
 
-        task = db.query(TaskModel).filter(TaskModel.id == task_id).first()
-        worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
-
         if task:
             task.status = TaskStatus.FAILED
             task.result = str(e)
+
+        result_payload = {"status": "error", "error": str(e)}
+
+    finally:
+        if task:
             task.finished_at = datetime.now(timezone.utc)
         if worker:
             worker.status = WorkerStatus.IDLE
 
         db.commit()
-        return {"status": "error", "error": str(e)}
-
-    finally:
         db.close()
+
+    return result_payload

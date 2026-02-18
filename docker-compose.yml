@@ -16,9 +16,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/docs/" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     volumes:
       - .:/app
-      - /var/run/docker.sock:/var/run/docker.sock # НОВЕ: Монтуємо спільний том для коду агента всередину апки
+      - /var/run/docker.sock:/var/run/docker.sock
       - ./agent_code_shared:/app/agent_code_shared
     networks:
       - factory_net
@@ -59,11 +64,9 @@ services:
   celery:
     build: .
     container_name: factory_celery
-    # Запускаємо процес Celery замість FastAPI
     command: celery -A app.core.celery_app worker --loglevel=info
     volumes:
       - .:/app
-      # Celery теж потрібен доступ до Docker, щоб відправляти команди в контейнери
       - /var/run/docker.sock:/var/run/docker.sock
       - ./agent_code_shared:/app/agent_code_shared
     env_file:
@@ -73,8 +76,8 @@ services:
       - POSTGRES_HOST=db
       - REDIS_URL=redis://redis:6379/0
     depends_on:
-      - redis
-      - app
+      redis:
+        condition: service_started
     networks:
       - factory_net
 #

@@ -1,9 +1,12 @@
 from datetime import datetime, timezone
 from typing import Sequence
 
+import docker
+from fastapi import HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.concurrency import run_in_threadpool
 
 from app.exceptions.worker import (
     WorkerLimitExceeded,
@@ -20,6 +23,7 @@ from app.models.worker import (
     TaskStatus,
 )
 from app.schemas.worker import WorkerCreate, TaskCreate
+from app.worker.docker_service import docker_service
 
 
 async def create_worker(
@@ -196,35 +200,94 @@ async def delete_task(session: AsyncSession, task_id: int, user_id: int) -> Task
     return task
 
 
-async def update_task_result(
-    session: AsyncSession,
-    task_id: int,
-    status: TaskStatus,
-    result: str = None,
-    logs: str = None,
-) -> TaskModel:
+async def stop_worker_container(
+        session: AsyncSession, worker_id: int, user_id: int, force: bool = False
+) -> WorkerModel:
     """
-    Called by background worker Celery when Gemini is finished.
-    Updates the status of the task and frees the Docker slot (puts it in IDLE).
+    Stops the worker container. Checks BUSY status and access rights.
     """
-    query = (
-        select(TaskModel)
-        .options(selectinload(TaskModel.worker))
-        .where(TaskModel.id == task_id)
-    )
-    res = await session.execute(query)
-    task = res.scalars().first()
+    # 1. Знаходимо воркера
+    stmt = (
+        select(WorkerModel)
+        .options(selectinload(WorkerModel.tasks))
+        .where(WorkerModel.id == worker_id, WorkerModel.user_id == user_id))
 
-    if task:
-        task.status = status
-        if result:
-            task.result = result
-        if logs:
-            task.logs = logs
+    result = await session.execute(stmt)
+    worker = result.scalar_one_or_none()
 
-        if status in [TaskStatus.COMPLETED, TaskStatus.FAILED]:
-            task.finished_at = datetime.now(timezone.utc)
-            task.worker.status = WorkerStatus.IDLE
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker not found or access denied")
 
-        await session.commit()
-    return task
+    if not worker.container_id:
+        raise HTTPException(status_code=400, detail="The worker has no bound container")
+
+    if worker.status == WorkerStatus.OFFLINE:
+        return worker
+
+
+    if worker.status == WorkerStatus.BUSY and not force:
+        raise HTTPException(
+            status_code=400,
+            detail="The worker is currently performing a task. Use force=true to force stop."
+        )
+
+    # 3. Docker SDK call in the thread pool (because stop() can take up to 10 seconds)
+    try:
+        def _docker_stop():
+            container = docker_service.client.containers.get(worker.container_id)
+            if force:
+                container.kill()
+            else:
+                container.stop()
+
+        await run_in_threadpool(_docker_stop)
+    except docker.errors.NotFound:
+        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Docker error: {str(e)}")
+
+    worker.status = WorkerStatus.OFFLINE
+    await session.commit()
+    await session.refresh(worker)
+
+    return worker
+
+
+async def start_worker_container(
+        session: AsyncSession, worker_id: int, user_id: int
+) -> WorkerModel:
+    """
+    Starts a previously stopped worker container.
+    """
+    stmt = (
+        select(WorkerModel)
+        .options(selectinload(WorkerModel.tasks))
+        .where(WorkerModel.id == worker_id, WorkerModel.user_id == user_id))
+    result = await session.execute(stmt)
+    worker = result.scalar_one_or_none()
+
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker not found or access denied")
+
+    if not worker.container_id:
+        raise HTTPException(status_code=400, detail="The worker has no bound container to run")
+
+    if worker.status in [WorkerStatus.IDLE, WorkerStatus.BUSY]:
+        return worker
+
+    try:
+        def _docker_start():
+            container = docker_service.client.containers.get(worker.container_id)
+            container.start()
+
+        await run_in_threadpool(_docker_start)
+    except docker.errors.NotFound:
+        raise HTTPException(status_code=404, detail="The container was not found on the server. It may have been deleted.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Docker error: {str(e)}")
+
+    worker.status = WorkerStatus.IDLE
+    await session.commit()
+    await session.refresh(worker)
+
+    return worker

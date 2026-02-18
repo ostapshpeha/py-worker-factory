@@ -33,7 +33,7 @@ class DockerService:
                 "VNC_VIEW_ONLY": "false",
                 "APP_ARGS": "--no-sandbox",
             }
-            host_absolute_path = "C:/Users/stark/py-woker-factory/agent_code_shared"
+            host_absolute_path = "C:/Users/stark/py-worker-factory/agent_code_shared"
             # base_host_path = os.getenv("HOST_PROJECT_PATH", "/app")
             # host_volume_path = f"{base_host_path}/agent_code_shared"
             volumes = {
