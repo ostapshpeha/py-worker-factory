@@ -80,19 +80,25 @@ services:
         condition: service_started
     networks:
       - factory_net
-#
-#
-#  beat:
-#    build: .
-#    container_name: factory_beat
-##    command: celery -A src.core.celery_app beat --loglevel=info
-#    env_file:
-#      - .env
-#    depends_on:
-#      - redis
-#      - db
-#    volumes:
-#      - .:/app
+
+  beat:
+    build: .
+    container_name: factory_beat
+    command: celery -A app.core.celery_app beat --loglevel=info
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_HOST=db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_started
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    networks:
+      - factory_net
 
 
 volumes:
