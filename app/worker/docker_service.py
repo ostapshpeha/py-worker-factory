@@ -17,8 +17,6 @@ class DockerService:
             logger.error(f"Failed to connect to Docker Daemon: {e}")
             raise
 
-    # Метод find_free_port ВИДАЛЕНО! Docker зробить це краще.
-
     def create_kasm_worker(
         self, worker_name: str, vnc_password: str
     ) -> Tuple[str, int]:
@@ -57,10 +55,8 @@ class DockerService:
                 restart_policy={"Name": "on-failure", "MaximumRetryCount": 3},
             )
 
-            # Оскільки ми дозволили Докеру вибрати порт, нам треба дізнатись, який саме він вибрав:
-            container.reload()  # Оновлюємо метадані контейнера
+            container.reload()
 
-            # Парсимо словник з портами: NetworkSettings -> Ports -> '6901/tcp' -> HostPort
             ports_info = (
                 container.attrs.get("NetworkSettings", {})
                 .get("Ports", {})
@@ -68,7 +64,6 @@ class DockerService:
             )
 
             if not ports_info:
-                # Fallback, якщо щось пішло не так і порт не прокинувся
                 self.stop_worker(container.id)
                 raise RuntimeError("Docker failed to assign a host port.")
 
@@ -94,10 +89,14 @@ class DockerService:
             logger.warning(f"Container {container_id} already removed.")
         except APIError as e:
             logger.error(f"Error stopping worker {container_id}: {e}")
+            raise
 
-    def execute_command(self, container_id: str, command: str, user: str = "kasm-user") -> str:
+    def execute_command(
+        self, container_id: str, command: str, user: str = "kasm-user", check: bool = True
+    ) -> str:
         """
         Executes a command inside a container.
+        If check=True (default), raises RuntimeError on non-zero exit codes.
         """
         try:
             container: Container = self.client.containers.get(container_id)
@@ -107,12 +106,31 @@ class DockerService:
             exit_code, output = container.exec_run(
                 command, user=user, workdir=workdir
             )
-            return output.decode("utf-8")
+            decoded = output.decode("utf-8")
+
+            if check and exit_code != 0:
+                logger.error(
+                    f"Command failed (exit {exit_code}) in {container_id}: {decoded[:200]}"
+                )
+                raise RuntimeError(
+                    f"Command failed with exit code {exit_code}: {decoded[:500]}"
+                )
+
+            return decoded
         except NotFound:
-            return f"Error: Container {container_id} not found."
+            raise RuntimeError(f"Container {container_id} not found.")
+        except RuntimeError:
+            raise
         except Exception as e:
             logger.error(f"Exec error in {container_id}: {e}")
-            return str(e)
+            raise RuntimeError(f"Exec error in {container_id}: {e}")
 
 
-docker_service = DockerService()
+_docker_service: Optional[DockerService] = None
+
+
+def get_docker_service() -> DockerService:
+    global _docker_service
+    if _docker_service is None:
+        _docker_service = DockerService()
+    return _docker_service

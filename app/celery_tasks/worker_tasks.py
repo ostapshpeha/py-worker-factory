@@ -7,7 +7,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from app.core.celery_app import celery_app
 from app.db.session import SessionLocal
 from app.models.worker import TaskModel, WorkerModel, WorkerStatus, TaskStatus
-from app.worker.docker_service import docker_service
+from app.worker.docker_service import get_docker_service
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ def run_oi_agent(self, container_id: str, gemini_api_key: str):
     # 1. Даємо права sudo (від root)
     fix_sudo_cmd = "sh -c 'echo \"kasm-user ALL=(ALL) NOPASSWD:ALL\" >> /etc/sudoers'"
     try:
-        docker_service.execute_command(container_id, fix_sudo_cmd, user="root")
+        get_docker_service().execute_command(container_id, fix_sudo_cmd, user="root")
         logger.info("✅ Sudo is valid!")
     except Exception as e:
         logger.error(f"❌ Can't set sudo: {e}")
@@ -43,7 +43,7 @@ def run_oi_agent(self, container_id: str, gemini_api_key: str):
     " """
 
     logger.info("📦 Installing packages...")
-    docker_service.execute_command(container_id, install_cmd, user="kasm-user")
+    get_docker_service().execute_command(container_id, install_cmd, user="kasm-user")
 
 
     python_logic = (
@@ -56,7 +56,7 @@ f"os.environ['GEMINI_API_KEY']='{gemini_api_key}'; "
 "interpreter.chat('System check: say Ready');"
     )
     oi_cmd = f'python3 -c "{python_logic}"'
-    docker_service.execute_command(container_id, oi_cmd, user="kasm-user")
+    get_docker_service().execute_command(container_id, oi_cmd, user="kasm-user")
 
     return {"status": "initialized"}
 
@@ -64,7 +64,7 @@ f"os.environ['GEMINI_API_KEY']='{gemini_api_key}'; "
 @celery_app.task(bind=True, name="execute_worker_task", soft_time_limit=500, time_limit=510)
 def execute_worker_task(self, task_id: int, worker_id: int, container_id: str, prompt: str, gemini_api_key: str):
     logger.info(f"▶️ Executing task {task_id} via Base64 Injection")
-    status_check = docker_service.execute_command(container_id, "whoami", user="kasm-user")
+    status_check = get_docker_service().execute_command(container_id, "whoami", user="kasm-user", check=False)
     logger.info(f"🔍 Container user check: {status_check}")
 
     # Python script injection
@@ -115,7 +115,7 @@ try:
     if interpreter.messages:
         # Беремо останнє повідомлення, щоб Celery міг його витягнути з логів
         last_msg = interpreter.messages[-1].get("content", "No content")
-        print(f"\\n===AGENT_FINAL_REPLY==\\n{{last_msg}}")
+        print(f"\\n===AGENT_FINAL_REPLY===\\n{{last_msg}}")
 
 except Exception as e:
     print(f"\\n===INTERNAL_ERROR===\\n{{e}}")
@@ -131,7 +131,7 @@ except Exception as e:
         worker = db.query(WorkerModel).filter(WorkerModel.id == worker_id).first()
 
         logger.info(f"🛠 Running command: {run_cmd[:100]}...")
-        output = docker_service.execute_command(container_id, run_cmd, user="kasm-user")
+        output = get_docker_service().execute_command(container_id, run_cmd, user="kasm-user")
 
         final_result = output
         if "===AGENT_FINAL_REPLY===" in output:

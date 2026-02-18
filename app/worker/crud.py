@@ -23,7 +23,7 @@ from app.models.worker import (
     TaskStatus,
 )
 from app.schemas.worker import WorkerCreate, TaskCreate
-from app.worker.docker_service import docker_service
+from app.worker.docker_service import get_docker_service
 
 
 async def create_worker(
@@ -234,7 +234,7 @@ async def stop_worker_container(
     # 3. Docker SDK call in the thread pool (because stop() can take up to 10 seconds)
     try:
         def _docker_stop():
-            container = docker_service.client.containers.get(worker.container_id)
+            container = get_docker_service().client.containers.get(worker.container_id)
             if force:
                 container.kill()
             else:
@@ -277,7 +277,7 @@ async def start_worker_container(
 
     try:
         def _docker_start():
-            container = docker_service.client.containers.get(worker.container_id)
+            container = get_docker_service().client.containers.get(worker.container_id)
             container.start()
 
         await run_in_threadpool(_docker_start)

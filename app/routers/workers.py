@@ -31,7 +31,7 @@ from app.exceptions.worker import (
     WorkerOfflineError,
 )
 from app.celery_tasks.worker_tasks import run_oi_agent, execute_worker_task
-from app.worker.docker_service import docker_service
+from app.worker.docker_service import get_docker_service
 from app.worker.crud import stop_worker_container, start_worker_container
 
 router = APIRouter(prefix="/workers", tags=["Workers"])
@@ -59,7 +59,7 @@ async def create_worker_endpoint(
         vnc_password = secrets.token_hex(8)
         try:
             container_id, host_port = await run_in_threadpool(
-                docker_service.create_kasm_worker,
+                get_docker_service().create_kasm_worker,
                 worker_name=container_name,
                 vnc_password=vnc_password,
             )
@@ -120,7 +120,7 @@ async def delete_worker_endpoint(
         worker = await crud.delete_worker(db, worker_id, current_user.id, force)
 
         if worker.container_id:
-            docker_service.stop_worker(worker.container_id)
+            get_docker_service().stop_worker(worker.container_id)
 
         return None
     except WorkerNotFound as e:

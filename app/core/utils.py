@@ -8,7 +8,7 @@ from fastapi import UploadFile, HTTPException, status
 
 from app.core.config import settings
 from app.core.s3 import s3_service
-from app.worker.docker_service import docker_service
+from app.worker.docker_service import get_docker_service
 
 
 def process_avatar(file: UploadFile) -> bytes:
@@ -53,9 +53,9 @@ def process_avatar(file: UploadFile) -> bytes:
 def capture_desktop_screenshot(container_id: str, worker_id: int) -> str:
     tmp_path = "/tmp/screen.png"
 
-    docker_service.execute_command(container_id, f"scrot {tmp_path}", user="kasm-user")
+    get_docker_service().execute_command(container_id, f"scrot {tmp_path}", user="kasm-user")
 
-    container = docker_service.client.containers.get(container_id)
+    container = get_docker_service().client.containers.get(container_id)
     bits, stat = container.get_archive(tmp_path)
 
     file_obj = io.BytesIO(b"".join(b for b in bits))
@@ -74,6 +74,6 @@ def capture_desktop_screenshot(container_id: str, worker_id: int) -> str:
         object_key,
     ))
 
-    docker_service.execute_command(container_id, f"rm {tmp_path}", user="kasm-user")
+    get_docker_service().execute_command(container_id, f"rm {tmp_path}", user="kasm-user", check=False)
 
     return url
