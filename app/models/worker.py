@@ -13,6 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+
 if TYPE_CHECKING:
     from app.models.user import User
 
@@ -30,6 +31,7 @@ class TaskStatus(str, Enum):
     PROCESSING = "PROCESSING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
 
 # --- MODELS ---
 

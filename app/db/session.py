@@ -16,6 +16,7 @@ engine_sync = create_engine(sync_url)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine_sync)
 
+
 class Base(DeclarativeBase):
     pass
 

@@ -43,7 +43,8 @@ class S3Service:
         self.default_bucket = settings.S3_BUCKET_NAME
 
     async def upload_bytes(
-            self, file_data: bytes, object_name: str, content_type: str = "image/png") -> str:
+        self, file_data: bytes, object_name: str, content_type: str = "image/png"
+    ) -> str:
         target_bucket = self.default_bucket
         try:
             async with self.session.client("s3", **self.config) as client:
