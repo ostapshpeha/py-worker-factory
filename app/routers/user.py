@@ -19,7 +19,6 @@ from app.models.user import (
     ActivationTokenModel,
     RefreshTokenModel,
     UserProfileModel,
-    PasswordResetTokenModel,
 )
 from app.schemas.user import (
     LoginRequest,
@@ -33,8 +32,6 @@ from app.schemas.user import (
     ActivationResponse,
     PasswordResetResponse,
     PasswordChangeSchema,
-    PasswordResetConfirmSchema,
-    PasswordResetRequestSchema,
     UserProfileUpdate,
 )
 from app.user.security import (
@@ -48,8 +45,6 @@ from app.user.validators import validate_passwords_different
 
 router = APIRouter(prefix="/user", tags=["User"])
 s3_service = S3Service()
-
-_RESET_AMBIGUOUS_MSG = "If the email exists, a password reset link has been sent"
 
 
 async def _validate_token_not_expired(
@@ -276,79 +271,6 @@ async def logout(
     )
     await session.commit()
 
-
-@router.post(
-    "/password-reset/request",
-    response_model=PasswordResetResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Request password reset",
-    description="Send password reset email to user",
-)
-async def request_password_reset(
-    data: PasswordResetRequestSchema,
-    session: AsyncSession = Depends(get_db),
-):
-    result = await session.execute(select(User).where(User.email == data.email))
-    user = result.scalar_one_or_none()
-
-    if not user or not user.is_active:
-        return PasswordResetResponse(detail=_RESET_AMBIGUOUS_MSG)
-
-    await session.execute(
-        delete(PasswordResetTokenModel).where(
-            PasswordResetTokenModel.user_id == user.id
-        )
-    )
-
-    reset_token_value = generate_secure_token()
-    reset_token = PasswordResetTokenModel(
-        user_id=user.id,
-        token=reset_token_value,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
-    )
-
-    session.add(reset_token)
-    await session.commit()
-
-    return PasswordResetResponse(detail=f"Your reset token - {reset_token_value}")
-
-
-@router.post(
-    "/password-reset/confirm",
-    response_model=PasswordResetResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Confirm password reset",
-    description="Reset password using token from email",
-)
-async def confirm_password_reset(
-    data: PasswordResetConfirmSchema,
-    session: AsyncSession = Depends(get_db),
-):
-    result = await session.execute(
-        select(PasswordResetTokenModel)
-        .where(PasswordResetTokenModel.token == data.token)
-        .options(selectinload(PasswordResetTokenModel.user))
-    )
-    reset_token = result.scalar_one_or_none()
-
-    if reset_token is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired reset token",
-        )
-
-    await _validate_token_not_expired(reset_token, session, "Reset token has expired")
-
-    user = reset_token.user
-    user.password = data.new_password
-
-    await session.delete(reset_token)
-    await session.execute(
-        delete(RefreshTokenModel).where(RefreshTokenModel.user_id == user.id)
-    )
-    await session.commit()
-
-    return PasswordResetResponse(detail="Password successfully reset")
 
 
 @router.post(

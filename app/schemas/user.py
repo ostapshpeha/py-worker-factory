@@ -59,25 +59,6 @@ class ActivationResponse(BaseModel):
     email: EmailStr
 
 
-class PasswordResetRequestSchema(BaseModel):
-    """Request schema for password reset."""
-
-    email: EmailStr
-
-
-class PasswordResetConfirmSchema(BaseModel):
-    """Confirm password reset with token and new password."""
-
-    token: str
-    new_password: str
-
-    @field_validator("new_password")
-    @classmethod
-    def validate_new_password(cls, v: str) -> str:
-        """Validate password strength at schema level."""
-        return validate_password_strength(v)
-
-
 class PasswordChangeSchema(BaseModel):
     """Change password for authenticated user."""
 
