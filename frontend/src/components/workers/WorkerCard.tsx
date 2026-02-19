@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { Worker, WorkerStatus } from '../../types'
 
 // ── Status config ───────────────────────────────────────────────────
@@ -96,6 +97,24 @@ export function WorkerCard({ worker, isSelected, onClick }: WorkerCardProps) {
           {worker.completedTasks} tasks completed
         </p>
       ) : null}
+
+      {/* Row 4: nav links — only when selected */}
+      {isSelected && (
+        <div className="flex items-center gap-1 mt-2.5 pt-2.5 border-t border-border" onClick={e => e.stopPropagation()}>
+          <Link
+            to={`/workers/${worker.id}/tasks`}
+            className="flex items-center gap-1 font-mono text-[10px] text-slate-600 hover:text-slate-200 px-2 py-1 hover:bg-surface/60 transition-colors border border-transparent hover:border-border-bright"
+          >
+            ≡ Tasks
+          </Link>
+          <Link
+            to={`/workers/${worker.id}/screenshots`}
+            className="flex items-center gap-1 font-mono text-[10px] text-slate-600 hover:text-slate-200 px-2 py-1 hover:bg-surface/60 transition-colors border border-transparent hover:border-border-bright"
+          >
+            ⊙ Shots
+          </Link>
+        </div>
+      )}
     </button>
   )
 }

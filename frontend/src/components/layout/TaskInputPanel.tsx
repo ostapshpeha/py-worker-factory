@@ -1,46 +1,6 @@
 import { useState } from 'react'
-import type { Worker, WorkerStatus } from '../../types'
-
-// ── Skill definitions ─────────────────────────────────────────────
-type SkillId =
-  | 'planner'
-  | 'data-wizard'
-  | 'diagram-builder'
-  | 'web-researcher'
-  | 'document-generator'
-
-const SKILLS: { id: SkillId; icon: string; label: string; hint: string }[] = [
-  {
-    id:    'planner',
-    icon:  '◆',
-    label: 'Planner',
-    hint:  'Strategic reasoning & multi-step planning',
-  },
-  {
-    id:    'data-wizard',
-    icon:  '∑',
-    label: 'Data Wizard',
-    hint:  'Data extraction, parsing & analysis',
-  },
-  {
-    id:    'diagram-builder',
-    icon:  '⊞',
-    label: 'Diagram Builder',
-    hint:  'Charts, flowcharts & visualizations',
-  },
-  {
-    id:    'web-researcher',
-    icon:  '◎',
-    label: 'Web Researcher',
-    hint:  'Web scraping, browsing & research',
-  },
-  {
-    id:    'document-generator',
-    icon:  '≡',
-    label: 'Doc Generator',
-    hint:  'Reports, docs & structured output',
-  },
-]
+import type { Worker, WorkerStatus, SkillId } from '../../types'
+import { SKILLS } from '../../lib/skills'
 
 // Inline to avoid cross-file constant sprawl
 const STATUS_INDICATOR_COLOR: Record<WorkerStatus, string> = {
