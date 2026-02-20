@@ -214,7 +214,7 @@ export function LiveViewBezel({ worker, onCapture, lastScreenshotUrl }: LiveView
           <div
             className="relative w-full overflow-hidden bg-void scanlines"
             style={{
-              aspectRatio: '1024 / 768',
+              aspectRatio: '1280 / 1024',
               boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7), inset 0 2px 12px rgba(0,0,0,0.5)',
             }}
           >
@@ -223,7 +223,7 @@ export function LiveViewBezel({ worker, onCapture, lastScreenshotUrl }: LiveView
               <img
                 src={lastScreenshotUrl}
                 alt="Worker desktop"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain bg-void"
               />
             ) : (
               <>
