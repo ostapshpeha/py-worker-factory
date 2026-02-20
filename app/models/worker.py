@@ -13,6 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
+
 if TYPE_CHECKING:
     from app.models.user import User
 
@@ -31,6 +32,7 @@ class TaskStatus(str, Enum):
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
 
+
 # --- MODELS ---
 
 
@@ -41,12 +43,15 @@ class WorkerModel(Base):
     name: Mapped[str] = mapped_column(String(50), unique=True)
 
     # --- Docker Info ---
-    # container_id: рядок від Docker (напр. "a1b2c3d4..."). Якщо NULL — воркер вимкнений.
     container_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     vnc_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     status: Mapped[WorkerStatus] = mapped_column(String, default=WorkerStatus.OFFLINE)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     tasks: Mapped[List["TaskModel"]] = relationship(
         "TaskModel", back_populates="worker", cascade="all, delete-orphan"
@@ -60,16 +65,14 @@ class TaskModel(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    # Вхідні дані
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Результат роботи (важливо!)
     result: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
-    )  # JSON або текст відповіді
+    )
     logs: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True
-    )  # Логи помилок, якщо були
+    )
 
     status: Mapped[TaskStatus] = mapped_column(String, default=TaskStatus.QUEUED)
 

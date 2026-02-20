@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/* ── Design Tokens ──────────────────────────────────────────────────
+   Neural Ops theme: deep blue-blacks + phosphor green accent
+   Everything flows from these CSS custom properties.
+───────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Depth scale — darkest to lightest surface */
+  --color-void:     #07090D;   /* deepest bg, sidebar chrome */
+  --color-abyss:    #0C1118;   /* page background */
+  --color-surface:  #111827;   /* cards, panels */
+  --color-elevated: #19243A;   /* elevated panels, active states */
+  --color-overlay:  #1E2D40;   /* modals, tooltips */
+
+  /* Blue-gray neutrals */
+  --color-slate-900: #1A2235;
+  --color-slate-800: #263045;
+  --color-slate-700: #374155;
+  --color-slate-600: #4E5F73;
+  --color-slate-400: #7A8FA3;
+  --color-slate-300: #A8B8C8;
+  --color-slate-100: #E8EDF2;
+
+  /* Agent green — the one accent that commands attention */
+  --color-agent:      #00FF88;
+  --color-agent-dim:  #00CC6A;
+  --color-agent-dark: #007A42;
+
+  /* Semantic status */
+  --color-danger:  #FF3B30;
+  --color-warning: #F59E0B;
+  --color-info:    #38BDF8;
+
+  /* Borders — subtle structural lines */
+  --color-border:       #1A2740;
+  --color-border-bright: #2A3F58;
+
+  /* Typography stack */
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Courier New", monospace;
+
+  /* Consistent letter-spacing for mono labels */
+  --tracking-ops: 0.15em;
+}
+
+/* ── Base Reset & Globals ───────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+    background-color: var(--color-abyss);
+    color: var(--color-slate-100);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--color-abyss);
+  }
+
+  #root {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Monospace elements inherit the mono stack */
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
+
+  /* Agent-green selection highlight */
+  ::selection {
+    background-color: rgba(0, 255, 136, 0.15);
+    color: var(--color-agent);
+  }
+
+  /* Thin, themed scrollbars */
+  ::-webkit-scrollbar       { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--color-void); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-slate-700);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-slate-600); }
+
+  /* Focus ring uses the accent color */
+  :focus-visible {
+    outline: 1.5px solid var(--color-agent);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Utility Extensions ─────────────────────────────────────────────── */
+@layer utilities {
+  /* Phosphor glow — use sparingly on active/online states */
+  .agent-glow {
+    box-shadow:
+      0 0 8px  rgba(0, 255, 136, 0.25),
+      0 0 32px rgba(0, 255, 136, 0.08);
+  }
+
+  /* Text glow for the brand wordmark */
+  .agent-text-glow {
+    text-shadow: 0 0 20px rgba(0, 255, 136, 0.45);
+  }
+
+  /* Subtle dot-grid background for the live view panel */
+  .grid-bg {
+    background-image:
+      radial-gradient(circle, rgba(42, 63, 88, 0.5) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  /* Status-colored glows for worker dot indicators */
+  .info-glow {
+    box-shadow:
+      0 0 6px  rgba(56, 189, 248, 0.5),
+      0 0 18px rgba(56, 189, 248, 0.15);
+  }
+  .warning-glow {
+    box-shadow:
+      0 0 6px  rgba(245, 158, 11, 0.5),
+      0 0 18px rgba(245, 158, 11, 0.15);
+  }
+
+  /* Scanline overlay — apply as a pseudo-element on screen panels */
+  .scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent        0px,
+      transparent        3px,
+      rgba(0, 0, 0, 0.06) 3px,
+      rgba(0, 0, 0, 0.06) 4px
+    );
+    pointer-events: none;
+  }
+
+  /* Mono label style — uppercase tracking for panel headers */
+  .label-ops {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;       /* 11px */
+    font-weight: 500;
+    letter-spacing: var(--tracking-ops);
+    text-transform: uppercase;
+    color: var(--color-slate-600);
+  }
+}

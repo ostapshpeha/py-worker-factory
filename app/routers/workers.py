@@ -43,7 +43,7 @@ router = APIRouter(prefix="/workers", tags=["Workers"])
     description="""
         Installing apps on new computer  (3-4 mins), after creating, gets full info of VM.
         User need to wait before executing tasks for correct work. You need to save VNC password.
-        """
+        """,
 )
 async def create_worker_endpoint(
     worker_in: WorkerCreate,
@@ -79,7 +79,7 @@ async def create_worker_endpoint(
 
         run_oi_agent.delay(
             container_id=updated_worker.container_id,
-            gemini_api_key=settings.GEMINI_API_KEY
+            gemini_api_key=settings.GEMINI_API_KEY,
         )
 
         return updated_worker
@@ -138,14 +138,16 @@ async def create_task_for_worker(
 ):
     """Creates a task for a specific worker and sends it to Celery."""
     try:
-        task, container_id = await crud.create_task(db, task_in, worker_id, current_user.id)
+        task, container_id = await crud.create_task(
+            db, task_in, worker_id, current_user.id
+        )
 
         execute_worker_task.delay(
             task_id=task.id,
             worker_id=worker_id,
             container_id=container_id,
             prompt=task.prompt,
-            gemini_api_key=settings.GEMINI_API_KEY
+            gemini_api_key=settings.GEMINI_API_KEY,
         )
 
         return task
@@ -160,7 +162,7 @@ async def create_task_for_worker(
 @router.get(
     "/{worker_id}/tasks",
     response_model=List[TaskListSchema],
-    summary="Gets task history"
+    summary="Gets task history",
 )
 async def get_worker_tasks(
     worker_id: int,
@@ -188,7 +190,10 @@ async def get_worker_screen(
     except WorkerNoContainerError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to capture screenshot")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to capture screenshot",
+        )
 
 
 @router.post(
@@ -198,13 +203,16 @@ async def get_worker_screen(
     description="""
     Puts the container into a sleep state (OFFLINE). Frees RAM but keeps files on disk.
     If the worker is busy (BUSY), the request will be rejected unless `force=true` is passed.
-    """
+    """,
 )
 async def stop_worker_endpoint(
     worker_id: int,
-    force: bool = Query(False, description="Force kill the container even if it is running a task (BUSY)"),
+    force: bool = Query(
+        False,
+        description="Force kill the container even if it is running a task (BUSY)",
+    ),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         return await crud.stop_worker_container(db, worker_id, current_user.id, force)
@@ -215,19 +223,21 @@ async def stop_worker_endpoint(
     except WorkerIsBusyError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except DockerOperationError as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.post(
     "/{worker_id}/start",
     response_model=WorkerStatusRead,
     summary="Start a stopped worker",
-    description="Wakes up a stopped container and puts it in IDLE status, ready to accept new tasks."
+    description="Wakes up a stopped container and puts it in IDLE status, ready to accept new tasks.",
 )
 async def start_worker_endpoint(
     worker_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     try:
         return await crud.start_worker_container(db, worker_id, current_user.id)
@@ -238,7 +248,9 @@ async def start_worker_endpoint(
     except ContainerNotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except DockerOperationError as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+        )
 
 
 @router.get("/{worker_id}/screenshots", response_model=List[ImageRead])

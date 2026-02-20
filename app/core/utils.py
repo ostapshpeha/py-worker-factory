@@ -53,7 +53,9 @@ def process_avatar(file: UploadFile) -> bytes:
 def capture_desktop_screenshot(container_id: str, worker_id: int) -> str:
     tmp_path = "/tmp/screen.png"
 
-    get_docker_service().execute_command(container_id, f"scrot {tmp_path}", user="kasm-user")
+    get_docker_service().execute_command(
+        container_id, f"scrot {tmp_path}", user="kasm-user"
+    )
 
     container = get_docker_service().client.containers.get(container_id)
     bits, stat = container.get_archive(tmp_path)
@@ -65,15 +67,21 @@ def capture_desktop_screenshot(container_id: str, worker_id: int) -> str:
 
     object_key = f"results/worker_{worker_id}/{int(time.time())}.png"
 
-    asyncio.run(s3_service.upload_bytes(
-        png_bytes,
-        object_key,
-    ))
+    asyncio.run(
+        s3_service.upload_bytes(
+            png_bytes,
+            object_key,
+        )
+    )
 
-    url = asyncio.run(s3_service.generate_presigned_url(
-        object_key,
-    ))
+    url = asyncio.run(
+        s3_service.generate_presigned_url(
+            object_key,
+        )
+    )
 
-    get_docker_service().execute_command(container_id, f"rm {tmp_path}", user="kasm-user", check=False)
+    get_docker_service().execute_command(
+        container_id, f"rm {tmp_path}", user="kasm-user", check=False
+    )
 
     return url

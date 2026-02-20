@@ -22,15 +22,6 @@ class UserResponse(UserBase):
     created_at: datetime
 
 
-class UserRegistrationResponseSchema(BaseModel):
-    id: int
-    email: EmailStr
-    is_active: bool
-    activate_token: str
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -44,38 +35,6 @@ class TokenLoginResponseSchema(BaseModel):
 
 class TokenRefreshRequestSchema(BaseModel):
     refresh_token: str
-
-
-class ActivationRequest(BaseModel):
-    """Request schema for account activation."""
-
-    token: str
-
-
-class ActivationResponse(BaseModel):
-    """Response schema for successful activation."""
-
-    detail: str
-    email: EmailStr
-
-
-class PasswordResetRequestSchema(BaseModel):
-    """Request schema for password reset."""
-
-    email: EmailStr
-
-
-class PasswordResetConfirmSchema(BaseModel):
-    """Confirm password reset with token and new password."""
-
-    token: str
-    new_password: str
-
-    @field_validator("new_password")
-    @classmethod
-    def validate_new_password(cls, v: str) -> str:
-        """Validate password strength at schema level."""
-        return validate_password_strength(v)
 
 
 class PasswordChangeSchema(BaseModel):

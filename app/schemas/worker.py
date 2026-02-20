@@ -64,12 +64,13 @@ class WorkerRead(WorkerBase):
     id: int
     user_id: int
     status: WorkerStatus
+    created_at: Optional[datetime] = None
 
     container_id: Optional[str] = None
     vnc_port: Optional[int] = None
 
     tasks: List[TaskListSchema] = []
-    vnc_password: str = None
+    vnc_password: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
