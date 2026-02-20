@@ -85,20 +85,26 @@ export function WorkerCard({ worker, isSelected, onClick, onToggle, onDelete }: 
 
       {/* Row 2: id · port */}
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="font-mono text-[10px] text-slate-600 truncate">{worker.id}</span>
-        <span className="font-mono text-[10px] text-slate-700 shrink-0">:{worker.port}</span>
+        <span className="font-mono text-[10px] text-slate-600 truncate">#{worker.id}</span>
+        {worker.vnc_port && (
+          <span className="font-mono text-[10px] text-slate-700 shrink-0">:{worker.vnc_port}</span>
+        )}
       </div>
 
       {/* Row 3: current task or completed count */}
-      {worker.currentTask ? (
-        <p className="font-mono text-[10px] text-slate-500 truncate leading-tight">
-          ▸ {worker.currentTask}
-        </p>
-      ) : worker.completedTasks > 0 ? (
-        <p className="font-mono text-[10px] text-slate-700">
-          {worker.completedTasks} tasks completed
-        </p>
-      ) : null}
+      {(() => {
+        const activeTask = worker.tasks?.find(t => t.status === 'PROCESSING')
+        const completedCount = worker.tasks?.filter(t => t.status === 'COMPLETED').length ?? 0
+        return activeTask ? (
+          <p className="font-mono text-[10px] text-slate-500 truncate leading-tight">
+            ▸ {activeTask.prompt}
+          </p>
+        ) : completedCount > 0 ? (
+          <p className="font-mono text-[10px] text-slate-700">
+            {completedCount} tasks completed
+          </p>
+        ) : null
+      })()}
 
       {/* Row 4: nav links + action buttons — only when selected */}
       {isSelected && (

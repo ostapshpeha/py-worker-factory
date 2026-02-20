@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import type { Worker } from '../../types'
 import { WorkerCard } from '../workers/WorkerCard'
 
@@ -6,12 +7,42 @@ interface SidebarProps {
   selectedWorker: Worker | null
   isOpen: boolean
   onSelectWorker: (worker: Worker) => void
-  onToggleWorker?: (id: string) => void
-  onDeleteWorker?: (id: string) => void
+  onToggleWorker?: (id: number) => void
+  onDeleteWorker?: (id: number) => void
+  onSpawnWorker?: (name: string) => Promise<void>
 }
 
-export function Sidebar({ workers, selectedWorker, isOpen, onSelectWorker, onToggleWorker, onDeleteWorker }: SidebarProps) {
+export function Sidebar({ workers, selectedWorker, isOpen, onSelectWorker, onToggleWorker, onDeleteWorker, onSpawnWorker }: SidebarProps) {
   const activeCount = workers.filter(w => w.status !== 'OFFLINE').length
+
+  const [spawning, setSpawning]   = useState(false)
+  const [spawnName, setSpawnName] = useState('')
+  const [spawnBusy, setSpawnBusy] = useState(false)
+  const [spawnError, setSpawnError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function openSpawnForm() {
+    setSpawnName('')
+    setSpawnError(null)
+    setSpawning(true)
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
+
+  async function handleSpawn() {
+    const name = spawnName.trim()
+    if (!name || !onSpawnWorker) return
+    setSpawnBusy(true)
+    setSpawnError(null)
+    try {
+      await onSpawnWorker(name)
+      setSpawning(false)
+      setSpawnName('')
+    } catch (err) {
+      setSpawnError(err instanceof Error ? err.message : 'Failed to spawn worker')
+    } finally {
+      setSpawnBusy(false)
+    }
+  }
 
   return (
     <aside
@@ -60,24 +91,78 @@ export function Sidebar({ workers, selectedWorker, isOpen, onSelectWorker, onTog
         )}
       </div>
 
-      {/* ── Footer: spawn button ── */}
-      <div className="p-3 border-t border-border shrink-0">
-        <button className="
-          w-full py-2 px-4
-          font-mono text-[11px] tracking-widest uppercase
-          text-agent border border-agent-dark
-          hover:border-agent hover:bg-agent/5
-          active:bg-agent/10
-          transition-colors duration-150
-        ">
-          + Spawn Worker
-        </button>
-
-        {/* Slot count indicator */}
-        {workers.length >= 3 && (
-          <p className="font-mono text-[9px] text-slate-700 text-center mt-2 tracking-widest uppercase">
-            max workers reached
-          </p>
+      {/* ── Footer: spawn ── */}
+      <div className="p-3 border-t border-border shrink-0 space-y-2">
+        {spawning ? (
+          <>
+            <input
+              ref={inputRef}
+              value={spawnName}
+              onChange={e => setSpawnName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') void handleSpawn()
+                if (e.key === 'Escape') setSpawning(false)
+              }}
+              placeholder="worker name…"
+              className="
+                w-full bg-void border border-border-bright
+                font-mono text-[11px] text-slate-200 placeholder:text-slate-700
+                px-3 py-1.5 focus:outline-none focus:border-agent/60
+              "
+            />
+            {spawnError && (
+              <p className="font-mono text-[10px] text-danger/80">{spawnError}</p>
+            )}
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => void handleSpawn()}
+                disabled={!spawnName.trim() || spawnBusy}
+                className="
+                  flex-1 py-1.5 font-mono text-[10px] tracking-widest uppercase
+                  text-agent border border-agent/50
+                  hover:border-agent hover:bg-agent/5
+                  disabled:opacity-30 disabled:cursor-not-allowed
+                  transition-colors duration-150
+                "
+              >
+                {spawnBusy ? 'Spawning…' : 'Confirm'}
+              </button>
+              <button
+                onClick={() => setSpawning(false)}
+                disabled={spawnBusy}
+                className="
+                  px-3 py-1.5 font-mono text-[10px] text-slate-600
+                  border border-border hover:border-slate-600
+                  transition-colors duration-150
+                "
+              >
+                ✕
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={openSpawnForm}
+              disabled={workers.length >= 3}
+              className="
+                w-full py-2 px-4
+                font-mono text-[11px] tracking-widest uppercase
+                text-agent border border-agent-dark
+                hover:border-agent hover:bg-agent/5
+                active:bg-agent/10
+                disabled:opacity-30 disabled:cursor-not-allowed
+                transition-colors duration-150
+              "
+            >
+              + Spawn Worker
+            </button>
+            {workers.length >= 3 && (
+              <p className="font-mono text-[9px] text-slate-700 text-center tracking-widest uppercase">
+                max workers reached
+              </p>
+            )}
+          </>
         )}
       </div>
     </aside>

@@ -117,19 +117,22 @@ function ActiveScreen({ worker }: { worker: Worker }) {
               {worker.name} · KasmVNC
             </span>
           </div>
-          <span className="font-mono text-[9px] text-slate-700">:{worker.port}</span>
+          <span className="font-mono text-[9px] text-slate-700">:{worker.vnc_port}</span>
         </div>
       </div>
 
       {/* Current task overlay ribbon at bottom of screen */}
-      {worker.currentTask && (
-        <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-4 py-2 bg-void/90 border-t border-info/20 backdrop-blur-sm">
-          <span className="w-1.5 h-1.5 rounded-full bg-info info-glow animate-pulse shrink-0" />
-          <p className="font-mono text-[10px] text-slate-400 truncate">
-            {worker.currentTask}
-          </p>
-        </div>
-      )}
+      {(() => {
+        const activeTask = worker.tasks?.find(t => t.status === 'PROCESSING')
+        return activeTask ? (
+          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-4 py-2 bg-void/90 border-t border-info/20 backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-info info-glow animate-pulse shrink-0" />
+            <p className="font-mono text-[10px] text-slate-400 truncate">
+              {activeTask.prompt}
+            </p>
+          </div>
+        ) : null
+      })()}
     </div>
   )
 }
@@ -169,26 +172,31 @@ const STATUS_TEXT: Record<WorkerStatus, string> = {
 // ── LiveViewBezel ─────────────────────────────────────────────────
 interface LiveViewBezleProps {
   worker: Worker
+  onCapture?: () => Promise<void>
+  lastScreenshotUrl?: string
 }
 
-export function LiveViewBezel({ worker }: LiveViewBezleProps) {
+export function LiveViewBezel({ worker, onCapture, lastScreenshotUrl }: LiveViewBezleProps) {
   const canCapture = worker.status === 'BUSY' || worker.status === 'IDLE'
 
-  // Simulates the 30-second cooldown the API enforces
-  const [capturing, setCapturing]   = useState(false)
-  const [cooldown,  setCooldown]    = useState(false)
+  const [capturing, setCapturing] = useState(false)
+  const [cooldown,  setCooldown]  = useState(false)
+  const [captureError, setCaptureError] = useState<string | null>(null)
 
-  const handleCapture = useCallback(() => {
-    if (!canCapture || capturing || cooldown) return
+  const handleCapture = useCallback(async () => {
+    if (!canCapture || capturing || cooldown || !onCapture) return
     setCapturing(true)
-    // Simulate API round-trip (~1.5 s)
-    setTimeout(() => {
-      setCapturing(false)
+    setCaptureError(null)
+    try {
+      await onCapture()
       setCooldown(true)
-      // Cooldown badge clears after 30 s (matches backend enforcement)
       setTimeout(() => setCooldown(false), 30_000)
-    }, 1500)
-  }, [canCapture, capturing, cooldown])
+    } catch (err) {
+      setCaptureError(err instanceof Error ? err.message : 'Capture failed')
+    } finally {
+      setCapturing(false)
+    }
+  }, [canCapture, capturing, cooldown, onCapture])
 
   return (
     <div className="w-full">
@@ -206,15 +214,25 @@ export function LiveViewBezel({ worker }: LiveViewBezleProps) {
           <div
             className="relative w-full overflow-hidden bg-void scanlines"
             style={{
-              aspectRatio: '16/9',
+              aspectRatio: '1024 / 768',
               boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.7), inset 0 2px 12px rgba(0,0,0,0.5)',
             }}
           >
-            {/* Render state */}
-            {worker.status === 'STARTING' && <InitializingScreen workerName={worker.name} />}
-            {worker.status === 'OFFLINE'  && <OfflineScreen />}
-            {worker.status === 'IDLE'     && <IdleScreen worker={worker} />}
-            {worker.status === 'BUSY'     && <ActiveScreen worker={worker} />}
+            {/* Real screenshot when available, otherwise state placeholder */}
+            {lastScreenshotUrl ? (
+              <img
+                src={lastScreenshotUrl}
+                alt="Worker desktop"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <>
+                {worker.status === 'STARTING' && <InitializingScreen workerName={worker.name} />}
+                {worker.status === 'OFFLINE'  && <OfflineScreen />}
+                {worker.status === 'IDLE'     && <IdleScreen worker={worker} />}
+                {worker.status === 'BUSY'     && <ActiveScreen worker={worker} />}
+              </>
+            )}
 
             {/* Corner markers — sit above content */}
             <CornerMarkers />
@@ -230,8 +248,15 @@ export function LiveViewBezel({ worker }: LiveViewBezleProps) {
           </div>
         </div>
 
+        {/* Capture error strip */}
+        {captureError && (
+          <div className="px-4 py-1.5 mt-2.5 border-t border-danger/30 bg-danger/5">
+            <span className="font-mono text-[10px] text-danger/80">{captureError}</span>
+          </div>
+        )}
+
         {/* Bottom label strip — part of the bezel */}
-        <div className="flex items-center justify-between px-4 py-3 mt-2.5 border-t border-border gap-4">
+        <div className={`flex items-center justify-between px-4 py-3 border-t border-border gap-4 ${captureError ? '' : 'mt-2.5'}`}>
 
           {/* Left: status + worker info */}
           <div className="flex items-center gap-4 min-w-0">
@@ -244,7 +269,7 @@ export function LiveViewBezel({ worker }: LiveViewBezleProps) {
             <div className="w-px h-3 bg-border-bright shrink-0" />
             <span className="font-mono text-[10px] text-slate-400 truncate">{worker.name}</span>
             <span className="font-mono text-[10px] text-slate-700 shrink-0 hidden sm:block">
-              vnc :{worker.port}
+              vnc :{worker.vnc_port}
             </span>
           </div>
 
