@@ -40,7 +40,7 @@ class WorkerModel(Base):
     __tablename__ = "workers"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(50), unique=True)
+    name: Mapped[str] = mapped_column(String(50))
 
     # --- Docker Info ---
     container_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
