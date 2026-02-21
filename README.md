@@ -270,6 +270,25 @@ Claude Sonnet which is pretty expensive.
 In production, we need Kubernetes to manage these clusters of VMs, also cheaper and more simple KASM image.
 
 
+## Architecture Diagrams
+
+### System Architecture
+![System Architecture](drawio/worker-factory.drawio.png)
+
+### Data Models
+![Data Models](drawio/models.drawio.png)
+
+---
+
+## Screenshots
+
+![Screenshot 1](drawio/Screenshot_9.png)
+![Screenshot 2](drawio/Screenshot_10.png)
+![Screenshot 3](drawio/Screenshot_11.png)
+![Screenshot 4](drawio/Screenshot_12.png)
+
+---
+
 ## Demo
 
 [![Worker Factory — Demo](https://img.youtube.com/vi/tqWMVTPINfw/maxresdefault.jpg)](https://youtu.be/tqWMVTPINfw?si=HXg1DHoyL_u7ItLd)
